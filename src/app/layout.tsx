@@ -13,11 +13,6 @@ export const metadata: Metadata = {
     template: '%s | Xianna Admin'
   },
   description: 'Panel de administración para gestionar contenido, usuarios y analíticas de Xianna.',
-  icons: {
-    icon: '/images/xianna.png',
-    shortcut: '/images/xianna.png',
-    apple: '/images/xianna.png',
-  },
   robots: {
     index: false,
     follow: false,
@@ -31,10 +26,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <head>
-        <link rel="icon" href="/images/xianna.png" />
-        <link rel="apple-touch-icon" href="/images/xianna.png" />
-      </head>
       <body className={inter.className}>
         <ErrorBoundary>
           <Providers>

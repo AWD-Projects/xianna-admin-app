@@ -82,12 +82,16 @@ export const fetchOutfits = createAsyncThunk(
           // Use Outfits bucket with correct path structure
           const { data: files, error: listError } = await supabase.storage
             .from('Outfits')
-            .list(`uploads/${outfit.id}/imagen_principal`, { limit: 1 })
+            .list(`uploads/${outfit.id}/imagen_principal`)
             
           console.log(`Checking Outfits bucket for outfit ${outfit.id}:`, { files, listError })
           
           if (!listError && files && files.length > 0) {
-            const path = `uploads/${outfit.id}/imagen_principal/${files[0].name}`
+            // Sort files by created_at timestamp to get the most recent one
+            const sortedFiles = files.sort((a, b) => 
+              new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+            )
+            const path = `uploads/${outfit.id}/imagen_principal/${sortedFiles[0].name}`
               
             const { data: urlData } = supabase.storage
               .from('Outfits')
@@ -229,25 +233,15 @@ export const createOutfit = createAsyncThunk(
 
     // Create prendas
     if (outfitData.prendas.length > 0) {
-      for (const prenda of outfitData.prendas) {
-        const { data: prendaData } = await supabase
-          .from('prendas')
-          .insert({
-            nombre: prenda.nombre,
-            link: prenda.link,
-            id_outfit: data.id
-          })
-          .select()
-          .single()
-
-        // Upload prenda image if provided
-        if (prenda.imagen && prendaData) {
-          const fileName = `prenda_${Date.now()}_${prenda.imagen.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
-          await supabase.storage
-            .from('Outfits')
-            .upload(`uploads/${data.id}/prendas/${fileName}`, prenda.imagen)
-        }
-      }
+      const prendaInserts = outfitData.prendas.map(prenda => ({
+        nombre: prenda.nombre,
+        link: prenda.link,
+        id_outfit: data.id
+      }))
+      
+      await supabase
+        .from('prendas')
+        .insert(prendaInserts)
     }
 
     return data
@@ -274,6 +268,19 @@ export const updateOutfit = createAsyncThunk(
 
     // Upload new image if provided
     if (outfitData.imagen) {
+      // Delete existing images first
+      const { data: existingFiles } = await supabase.storage
+        .from('Outfits')
+        .list(`uploads/${id}/imagen_principal`)
+      
+      if (existingFiles && existingFiles.length > 0) {
+        const filePaths = existingFiles.map(file => `uploads/${id}/imagen_principal/${file.name}`)
+        await supabase.storage
+          .from('Outfits')
+          .remove(filePaths)
+      }
+      
+      // Upload new image
       const fileName = `${Date.now()}_${outfitData.imagen.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
       await supabase.storage
         .from('Outfits')
@@ -298,6 +305,28 @@ export const updateOutfit = createAsyncThunk(
         await supabase
           .from('outfit_ocasion')
           .insert(occasionInserts)
+      }
+    }
+
+    // Update prendas if provided
+    if (outfitData.prendas) {
+      // Delete existing prendas
+      await supabase
+        .from('prendas')
+        .delete()
+        .eq('id_outfit', id)
+
+      // Insert new prendas
+      if (outfitData.prendas.length > 0) {
+        const prendaInserts = outfitData.prendas.map(prenda => ({
+          nombre: prenda.nombre,
+          link: prenda.link,
+          id_outfit: id
+        }))
+        
+        await supabase
+          .from('prendas')
+          .insert(prendaInserts)
       }
     }
 

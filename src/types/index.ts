@@ -193,7 +193,6 @@ export interface OutfitFormData {
 export interface PrendaFormData {
   nombre: string
   link: string
-  imagen?: File
 }
 
 export interface QuestionFormData {

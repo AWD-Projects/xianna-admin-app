@@ -8,19 +8,29 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { StatCardSkeleton, CardSkeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { fetchOutfits, fetchStyles, fetchOccasions } from '@/store/slices/outfitSlice'
+import { fetchOutfits, fetchStyles, fetchOccasions, deleteOutfit } from '@/store/slices/outfitSlice'
+import { OutfitForm } from '@/components/dashboard/outfits/OutfitForm'
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
 import type { AppDispatch, RootState } from '@/store'
-import { Plus, Download, Heart, Shirt, Search, Filter, X } from 'lucide-react'
+import type { Outfit } from '@/types'
+import { Plus, Download, Heart, Shirt, Search, X, Edit, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
+import Image from 'next/image'
 
 export function CatalogManagement() {
   const dispatch = useDispatch<AppDispatch>()
-  const { outfits, loading, error, pagination, styles, occasions } = useSelector(
+  const { outfits, loading, pagination, styles, occasions } = useSelector(
     (state: RootState) => state.outfit
   )
 
   const [search, setSearch] = useState('')
   const [styleFilter, setStyleFilter] = useState('')
   const [occasionFilter, setOccasionFilter] = useState('')
+  
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [editingOutfit, setEditingOutfit] = useState<Outfit | null>(null)
+  const [deletingOutfit, setDeletingOutfit] = useState<Outfit | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     dispatch(fetchOutfits({ page: 1, pageSize: 12 }))
@@ -71,6 +81,39 @@ export function CatalogManagement() {
     dispatch(fetchOutfits({ page: 1, pageSize: 12 }))
   }
 
+  const handleCreateSuccess = () => {
+    setShowCreateForm(false)
+    setEditingOutfit(null)
+    // Refresh the outfits list
+    dispatch(fetchOutfits({ page: 1, pageSize: 12, search, styleFilter, occasionFilter }))
+  }
+
+  const handleEditOutfit = (outfit: Outfit) => {
+    setEditingOutfit(outfit)
+  }
+
+  const handleDeleteClick = (outfit: Outfit) => {
+    setDeletingOutfit(outfit)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingOutfit) return
+    
+    setIsDeleting(true)
+    try {
+      await dispatch(deleteOutfit(deletingOutfit.id)).unwrap()
+      toast.success('Outfit eliminado exitosamente')
+      setDeletingOutfit(null)
+      // Refresh the outfits list
+      dispatch(fetchOutfits({ page: 1, pageSize: 12, search, styleFilter, occasionFilter }))
+    } catch (error) {
+      toast.error('Error al eliminar el outfit')
+      console.error('Error deleting outfit:', error)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -111,6 +154,28 @@ export function CatalogManagement() {
     )
   }
 
+  // Show create form if in create mode
+  if (showCreateForm) {
+    return (
+      <OutfitForm
+        onSuccess={handleCreateSuccess}
+        onCancel={() => setShowCreateForm(false)}
+      />
+    )
+  }
+  
+  // Show edit form if editing
+  if (editingOutfit) {
+    return (
+      <OutfitForm
+        outfitId={editingOutfit.id}
+        initialData={editingOutfit}
+        onSuccess={handleCreateSuccess}
+        onCancel={() => setEditingOutfit(null)}
+      />
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -126,7 +191,10 @@ export function CatalogManagement() {
             <Download className="h-4 w-4" />
             Exportar
           </Button>
-          <Button className="flex items-center gap-2">
+          <Button 
+            onClick={() => setShowCreateForm(true)}
+            className="flex items-center gap-2"
+          >
             <Plus className="h-4 w-4" />
             Nuevo Outfit
           </Button>
@@ -252,15 +320,15 @@ export function CatalogManagement() {
       {/* Outfits Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {outfits.map((outfit) => (
-          <Card key={outfit.id} className="overflow-hidden">
+          <Card key={outfit.id} className="overflow-hidden flex flex-col">
             <div className="aspect-square bg-gray-200 relative">
               {outfit.imagen ? (
-                <img
+                <Image
                   src={outfit.imagen}
                   alt={outfit.nombre}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
                   onError={(e) => {
-                    // Hide image if it fails to load
                     e.currentTarget.style.display = 'none'
                   }}
                 />
@@ -283,13 +351,13 @@ export function CatalogManagement() {
             <CardHeader className="pb-2">
               <CardTitle className="line-clamp-1 text-lg">{outfit.nombre}</CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-                {outfit.descripcion}
-              </p>
-              
-              <div className="space-y-2">
-                <div className="flex flex-wrap gap-1">
+            <CardContent className="flex flex-col justify-between flex-1">
+              <div>
+                <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+                  {outfit.descripcion}
+                </p>
+                
+                <div className="flex flex-wrap gap-1 mb-3">
                   {outfit.ocasiones.slice(0, 2).map((ocasion, index) => (
                     <Badge key={index} variant="outline" className="text-xs">
                       {ocasion}
@@ -301,15 +369,27 @@ export function CatalogManagement() {
                     </Badge>
                   )}
                 </div>
-                
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    Editar
-                  </Button>
-                  <Button variant="destructive" size="sm" className="flex-1">
-                    Eliminar
-                  </Button>
-                </div>
+              </div>
+              
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={() => handleEditOutfit(outfit)}
+                >
+                  <Edit className="h-3 w-3 mr-1" />
+                  Editar
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={() => handleDeleteClick(outfit)}
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Eliminar
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -342,6 +422,19 @@ export function CatalogManagement() {
           </div>
         </div>
       )}
+      
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={!!deletingOutfit}
+        onClose={() => setDeletingOutfit(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Eliminar Outfit"
+        message={`¿Estás seguro de que deseas eliminar el outfit "${deletingOutfit?.nombre}"? Esta acción no se puede deshacer y se eliminarán todas las imágenes y prendas asociadas.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="danger"
+        loading={isDeleting}
+      />
     </div>
   )
 }
