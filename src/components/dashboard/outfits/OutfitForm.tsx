@@ -127,7 +127,7 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
         fetchPrendasForOutfit(outfitId)
       }
     }
-  }, [initialData, isEditing, reset, occasions, outfitId, fetchPrendasForOutfit])
+  }, [initialData, isEditing, occasions, outfitId, fetchPrendasForOutfit])
 
   const handleImageChange = (file: File | null) => {
     if (file) {

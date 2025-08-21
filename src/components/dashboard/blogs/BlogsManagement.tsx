@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ import { Plus, Download, Star, Users, Edit, Trash2, Search, Filter, X } from 'lu
 import { BlogForm } from './BlogForm'
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
 import { toast } from 'sonner'
+import { useRequestDeduplication } from '@/hooks/useRequestDeduplication'
 
 export function BlogsManagement() {
   const dispatch = useDispatch<AppDispatch>()
@@ -30,6 +31,16 @@ export function BlogsManagement() {
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [minRating, setMinRating] = useState(0)
+
+  // Debounced search to prevent excessive API calls
+  const fetchBlogsDebounced = useCallback((params: any) => {
+    dispatch(fetchBlogs(params))
+  }, [dispatch])
+
+  const { debouncedRequest: debouncedFetchBlogs } = useRequestDeduplication(
+    fetchBlogsDebounced,
+    { delay: 500 }
+  )
 
   useEffect(() => {
     dispatch(fetchBlogs({ page: 1, pageSize: 10 }))
@@ -47,13 +58,13 @@ export function BlogsManagement() {
   }
 
   const handleSearch = () => {
-    dispatch(fetchBlogs({ 
+    debouncedFetchBlogs({ 
       page: 1, 
       pageSize: 10, 
       search, 
       category: categoryFilter, 
       minRating 
-    }))
+    })
   }
 
   const handleFilterChange = (type: 'category' | 'rating', value: string | number) => {

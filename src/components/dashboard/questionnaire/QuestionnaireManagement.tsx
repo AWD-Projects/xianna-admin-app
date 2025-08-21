@@ -1,14 +1,19 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatCardSkeleton, ListItemSkeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { fetchQuestions } from '@/store/slices/questionnaireSlice'
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
+import { fetchQuestions, deleteQuestion } from '@/store/slices/questionnaireSlice'
+import { QuestionForm } from './QuestionForm'
 import type { AppDispatch, RootState } from '@/store'
-import { Plus, Download } from 'lucide-react'
+import type { Question } from '@/types'
+import { Plus, Download, Edit, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
+import * as XLSX from 'xlsx'
 
 export function QuestionnaireManagement() {
   const dispatch = useDispatch<AppDispatch>()
@@ -16,9 +21,85 @@ export function QuestionnaireManagement() {
     (state: RootState) => state.questionnaire
   )
 
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null)
+  const [deletingQuestion, setDeletingQuestion] = useState<Question | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   useEffect(() => {
     dispatch(fetchQuestions())
   }, [dispatch])
+
+  const handleCreateSuccess = () => {
+    setShowCreateForm(false)
+    setEditingQuestion(null)
+    // Refresh the questions list
+    dispatch(fetchQuestions())
+  }
+
+  const handleEditQuestion = (question: Question) => {
+    setEditingQuestion(question)
+  }
+
+  const handleDeleteClick = (question: Question) => {
+    setDeletingQuestion(question)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingQuestion) return
+    
+    setIsDeleting(true)
+    try {
+      await dispatch(deleteQuestion(deletingQuestion.id)).unwrap()
+      toast.success('Pregunta eliminada exitosamente')
+      setDeletingQuestion(null)
+      // Refresh the questions list
+      dispatch(fetchQuestions())
+    } catch (error) {
+      toast.error('Error al eliminar la pregunta')
+      console.error('Error deleting question:', error)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleExportCSV = () => {
+    if (questions.length === 0) {
+      toast.error('No hay preguntas para exportar')
+      return
+    }
+
+    // Prepare data for CSV export - detailed format with all questions and answers
+    const data: any[] = []
+    
+    questions.forEach((question, questionIndex) => {
+      question.answers.forEach((answer, answerIndex) => {
+        data.push({
+          'Pregunta #': questionIndex + 1,
+          'Pregunta': question.pregunta,
+          'Respuesta #': answerIndex + 1,
+          'Respuesta': answer.respuesta,
+          'Identificador': answer.identificador.toUpperCase(),
+          'ID Estilo': answer.id_estilo,
+          'ID Pregunta': question.id,
+          'ID Respuesta': answer.id
+        })
+      })
+    })
+
+    // Create worksheet and workbook
+    const ws = XLSX.utils.json_to_sheet(data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Cuestionario')
+    
+    // Generate filename with current date
+    const date = new Date().toISOString().split('T')[0]
+    const filename = `cuestionario_${date}.csv`
+    
+    // Export as CSV
+    XLSX.writeFile(wb, filename, { bookType: 'csv' })
+    toast.success('Cuestionario exportado exitosamente')
+  }
 
   if (loading) {
     return (
@@ -51,6 +132,27 @@ export function QuestionnaireManagement() {
     )
   }
 
+  // Show create form if in create mode
+  if (showCreateForm) {
+    return (
+      <QuestionForm
+        onSuccess={handleCreateSuccess}
+        onCancel={() => setShowCreateForm(false)}
+      />
+    )
+  }
+  
+  // Show edit form if editing
+  if (editingQuestion) {
+    return (
+      <QuestionForm
+        question={editingQuestion}
+        onSuccess={handleCreateSuccess}
+        onCancel={() => setEditingQuestion(null)}
+      />
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -62,11 +164,20 @@ export function QuestionnaireManagement() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2"
+            onClick={handleExportCSV}
+            disabled={questions.length === 0}
+            title={questions.length === 0 ? 'No hay preguntas para exportar' : 'Exportar cuestionario a CSV'}
+          >
             <Download className="h-4 w-4" />
-            Exportar
+            Exportar CSV {questions.length > 0 && `(${questions.length})`}
           </Button>
-          <Button className="flex items-center gap-2">
+          <Button 
+            onClick={() => setShowCreateForm(true)}
+            className="flex items-center gap-2"
+          >
             <Plus className="h-4 w-4" />
             Nueva Pregunta
           </Button>
@@ -127,10 +238,20 @@ export function QuestionnaireManagement() {
                   <CardTitle className="text-lg">{question.pregunta}</CardTitle>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleEditQuestion(question)}
+                  >
+                    <Edit className="h-3 w-3 mr-1" />
                     Editar
                   </Button>
-                  <Button variant="destructive" size="sm">
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={() => handleDeleteClick(question)}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
                     Eliminar
                   </Button>
                 </div>
@@ -169,12 +290,29 @@ export function QuestionnaireManagement() {
           <p className="text-gray-500 mb-4">
             Comienza creando la primera pregunta del cuestionario
           </p>
-          <Button className="flex items-center gap-2">
+          <Button 
+            onClick={() => setShowCreateForm(true)}
+            className="flex items-center gap-2"
+          >
             <Plus className="h-4 w-4" />
             Crear Primera Pregunta
           </Button>
         </div>
       )}
+      
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={!!deletingQuestion}
+        onClose={() => setDeletingQuestion(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Eliminar Pregunta"
+        message={`¿Estás seguro de que deseas eliminar la pregunta "${deletingQuestion?.pregunta}"? Esta acción eliminará también todas las respuestas asociadas y no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="danger"
+        loading={isDeleting}
+      />
+
     </div>
   )
 }

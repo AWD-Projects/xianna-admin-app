@@ -95,7 +95,7 @@ export function BlogForm({ onSuccess, onCancel, blogId, initialData }: BlogFormP
         dispatch(fetchBlogById(blogId))
       }
     }
-  }, [isEditing, initialData, blogId, reset, dispatch])
+  }, [isEditing, initialData, blogId, dispatch])
   
   // Update form when blog data is loaded from API
   useEffect(() => {
@@ -112,7 +112,7 @@ export function BlogForm({ onSuccess, onCancel, blogId, initialData }: BlogFormP
         setPreviewUrls(currentBlog.images)
       }
     }
-  }, [currentBlog, isEditing, blogId, initialData, reset])
+  }, [currentBlog, isEditing, blogId, initialData])
 
   // Handle image selection
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {

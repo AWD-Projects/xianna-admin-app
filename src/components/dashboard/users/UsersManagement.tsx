@@ -4,13 +4,16 @@ import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { StatCardSkeleton, UserCardSkeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { fetchAllUsers, setSelectedUser, clearSelectedUser } from '@/store/slices/userSlice'
 import type { AppDispatch, RootState } from '@/store'
 import type { User } from '@/types'
-import { Download, User as UserIcon, Search, Filter } from 'lucide-react'
+import { Download, User as UserIcon, Search, Filter, X } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import { toast } from 'sonner'
 
 export function UsersManagement() {
   const dispatch = useDispatch<AppDispatch>()
@@ -48,7 +51,10 @@ export function UsersManagement() {
   // Calculate statistics
   const getUserStats = () => {
     const totalUsers = users.length
-    const avgAge = users.reduce((sum, user) => sum + (user.edad || 0), 0) / totalUsers
+    const usersWithAge = users.filter(user => user.edad && user.edad > 0)
+    const avgAge = usersWithAge.length > 0 
+      ? usersWithAge.reduce((sum, user) => sum + user.edad, 0) / usersWithAge.length 
+      : 0
     
     // Get unique values for filters
     const uniqueStates = Array.from(new Set(users.map(user => user.estado).filter(Boolean)))
@@ -104,7 +110,12 @@ export function UsersManagement() {
     return styleMap[tipoEstilo] || `Estilo ${tipoEstilo}`
   }
 
-  const handleExportExcel = () => {
+  const handleExportCSV = () => {
+    if (filteredUsers.length === 0) {
+      toast.error('No hay usuarios para exportar')
+      return
+    }
+
     const data = filteredUsers.map(user => ({
       Nombre: user.nombre,
       Correo: user.correo,
@@ -115,12 +126,20 @@ export function UsersManagement() {
       Talla: user.talla,
       'Tipo de cuerpo': user.tipo_cuerpo,
       'Tipo de estilo': getStyleName(user.tipo_estilo),
+      'ID Usuario': user.id
     }))
 
     const ws = XLSX.utils.json_to_sheet(data)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Usuarios')
-    XLSX.writeFile(wb, 'reporte_usuarios.xlsx')
+    
+    // Generate filename with current date
+    const date = new Date().toISOString().split('T')[0]
+    const filename = `usuarios_${date}.csv`
+    
+    // Export as CSV
+    XLSX.writeFile(wb, filename, { bookType: 'csv' })
+    toast.success('Usuarios exportados exitosamente')
   }
 
   if (loading) {
@@ -136,7 +155,6 @@ export function UsersManagement() {
 
         {/* Action Buttons Skeleton */}
         <div className="flex justify-end gap-3">
-          <div className="h-10 w-32 bg-gray-200 rounded-md animate-pulse" />
           <div className="h-10 w-40 bg-gray-200 rounded-md animate-pulse" />
         </div>
 
@@ -205,13 +223,9 @@ export function UsersManagement() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={clearFilters} className="flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            Limpiar Filtros
-          </Button>
-          <Button onClick={handleExportExcel} className="flex items-center gap-2">
+          <Button onClick={handleExportCSV} className="flex items-center gap-2">
             <Download className="h-4 w-4" />
-            Exportar ({stats.filteredCount})
+            Exportar CSV ({stats.filteredCount})
           </Button>
         </div>
       </div>
@@ -270,75 +284,88 @@ export function UsersManagement() {
         </Card>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            Filtros Avanzados
-            <div className="text-sm font-normal text-gray-600">
-              {stats.filteredCount} de {stats.totalUsers} usuarios
+      {/* Search and Filters */}
+      <div className="bg-white p-4 rounded-lg border space-y-4">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Buscar usuarios por nombre o correo..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Search Row */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Buscar Usuario
+          </div>
+          <div className="text-sm text-gray-600 flex items-center">
+            {stats.filteredCount} de {stats.totalUsers} usuarios
+          </div>
+        </div>
+        
+        <div className="flex flex-col md:flex-row gap-4 items-end">
+          <div className="flex-1">
+            <label className="text-sm font-medium text-gray-700 mb-2 block">
+              Filtrar por estado
             </label>
-            <input
-              type="text"
-              placeholder="Buscar por nombre o correo..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-            />
+            <Select value={selectedState || undefined} onValueChange={(value) => setSelectedState(value || '')}>
+              <SelectTrigger>
+                <SelectValue placeholder="Todos los estados" />
+              </SelectTrigger>
+              <SelectContent>
+                {stats.uniqueStates.map((state) => (
+                  <SelectItem key={state} value={state}>
+                    {state}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
-          {/* Filter Dropdowns */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
-              <select
-                value={selectedState}
-                onChange={(e) => setSelectedState(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
-              >
-                <option value="">Todos los estados</option>
-                {stats.uniqueStates.map(state => (
-                  <option key={state} value={state}>{state}</option>
+          <div className="flex-1">
+            <label className="text-sm font-medium text-gray-700 mb-2 block">
+              Filtrar por género
+            </label>
+            <Select value={selectedGender || undefined} onValueChange={(value) => setSelectedGender(value || '')}>
+              <SelectTrigger>
+                <SelectValue placeholder="Todos los géneros" />
+              </SelectTrigger>
+              <SelectContent>
+                {stats.uniqueGenders.map((gender) => (
+                  <SelectItem key={gender} value={gender}>
+                    {gender}
+                  </SelectItem>
                 ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Género</label>
-              <select
-                value={selectedGender}
-                onChange={(e) => setSelectedGender(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
-              >
-                <option value="">Todos los géneros</option>
-                {stats.uniqueGenders.map(gender => (
-                  <option key={gender} value={gender}>{gender}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Ocupación</label>
-              <select
-                value={selectedOccupation}
-                onChange={(e) => setSelectedOccupation(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
-              >
-                <option value="">Todas las ocupaciones</option>
-                {stats.uniqueOccupations.map(occupation => (
-                  <option key={occupation} value={occupation}>{occupation}</option>
-                ))}
-              </select>
-            </div>
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-      </Card>
+          
+          <div className="flex-1">
+            <label className="text-sm font-medium text-gray-700 mb-2 block">
+              Filtrar por ocupación
+            </label>
+            <Select value={selectedOccupation || undefined} onValueChange={(value) => setSelectedOccupation(value || '')}>
+              <SelectTrigger>
+                <SelectValue placeholder="Todas las ocupaciones" />
+              </SelectTrigger>
+              <SelectContent>
+                {stats.uniqueOccupations.map((occupation) => (
+                  <SelectItem key={occupation} value={occupation}>
+                    {occupation}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {(searchTerm || selectedState || selectedGender || selectedOccupation) && (
+            <Button variant="outline" onClick={clearFilters} className="flex items-center gap-2">
+              <X className="h-4 w-4" />
+              Limpiar filtros
+            </Button>
+          )}
+        </div>
+      </div>
 
       {/* Users List */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

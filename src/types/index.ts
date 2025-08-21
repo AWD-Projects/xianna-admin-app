@@ -148,6 +148,7 @@ export interface BlogAnalytics {
   mostPopularCategory: string
   blogsByCategory: { category: string; count: number }[]
   ratingDistribution: { rating: number; count: number }[]
+  blogRatings: { blog: string; averageRating: number }[]
 }
 
 export interface OutfitAnalytics {
@@ -156,6 +157,7 @@ export interface OutfitAnalytics {
   mostSavedOutfit: string
   outfitsByStyle: { style: string; count: number }[]
   outfitsByOccasion: { occasion: string; count: number }[]
+  outfitFavorites: { outfit: string; favorites: number }[]
 }
 
 export interface QuestionnaireAnalytics {

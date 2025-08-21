@@ -13,7 +13,7 @@ import { OutfitForm } from '@/components/dashboard/outfits/OutfitForm'
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
 import type { AppDispatch, RootState } from '@/store'
 import type { Outfit } from '@/types'
-import { Plus, Download, Heart, Shirt, Search, X, Edit, Trash2 } from 'lucide-react'
+import { Plus, Heart, Shirt, Search, X, Edit, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
 
@@ -31,12 +31,73 @@ export function CatalogManagement() {
   const [editingOutfit, setEditingOutfit] = useState<Outfit | null>(null)
   const [deletingOutfit, setDeletingOutfit] = useState<Outfit | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [totalFavoritesFromDB, setTotalFavoritesFromDB] = useState<number | null>(null)
+  const [mostSavedOutfit, setMostSavedOutfit] = useState<{name: string, count: number} | null>(null)
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false)
+
+  // Function to fetch total favorites from DB
+  const fetchTotalFavorites = async () => {
+    try {
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      const { count } = await supabase
+        .from('favoritos')
+        .select('*', { count: 'exact', head: true })
+      
+      setTotalFavoritesFromDB(count)
+    } catch (error) {
+      // Silently fall back to page-level calculation
+    }
+  }
+
+  // Function to fetch most saved outfit from DB
+  const fetchMostSavedOutfit = async () => {
+    try {
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      
+      // Get favorites with outfit names
+      const { data: favorites } = await supabase
+        .from('favoritos')
+        .select(`
+          outfit,
+          outfits!inner(nombre)
+        `)
+
+      if (favorites && favorites.length > 0) {
+        // Count favorites per outfit
+        const outfitCounts: { [key: string]: number } = {}
+        favorites.forEach((fav: any) => {
+          const outfitName = fav.outfits?.nombre || 'Sin nombre'
+          outfitCounts[outfitName] = (outfitCounts[outfitName] || 0) + 1
+        })
+
+        // Find the most saved outfit
+        const mostSaved = Object.entries(outfitCounts)
+          .sort(([,a], [,b]) => b - a)[0]
+
+        if (mostSaved) {
+          setMostSavedOutfit({
+            name: mostSaved[0],
+            count: mostSaved[1]
+          })
+        }
+      }
+    } catch (error) {
+      // Silently fall back to page-level calculation
+    }
+  }
 
   useEffect(() => {
-    dispatch(fetchOutfits({ page: 1, pageSize: 12 }))
-    dispatch(fetchStyles())
-    dispatch(fetchOccasions())
-  }, [dispatch])
+    if (!initialDataLoaded) {
+      dispatch(fetchOutfits({ page: 1, pageSize: 12 }))
+      dispatch(fetchStyles())
+      dispatch(fetchOccasions())
+      fetchTotalFavorites()
+      fetchMostSavedOutfit()
+      setInitialDataLoaded(true)
+    }
+  }, [dispatch, initialDataLoaded])
 
   const handlePageChange = (newPage: number) => {
     dispatch(fetchOutfits({ 
@@ -126,7 +187,6 @@ export function CatalogManagement() {
             </p>
           </div>
           <div className="flex gap-2">
-            <div className="h-10 w-24 bg-gray-200 rounded-md animate-pulse" />
             <div className="h-10 w-32 bg-gray-200 rounded-md animate-pulse" />
           </div>
         </div>
@@ -187,10 +247,6 @@ export function CatalogManagement() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="flex items-center gap-2">
-            <Download className="h-4 w-4" />
-            Exportar
-          </Button>
           <Button 
             onClick={() => setShowCreateForm(true)}
             className="flex items-center gap-2"
@@ -214,38 +270,64 @@ export function CatalogManagement() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Activos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{outfits.length}</div>
-            <p className="text-sm text-muted-foreground">En esta página</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
             <CardTitle>Total Favoritos</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {outfits.reduce((acc, outfit) => acc + outfit.favoritos, 0)}
+              {totalFavoritesFromDB !== null ? totalFavoritesFromDB : outfits.reduce((acc, outfit) => acc + outfit.favoritos, 0)}
             </div>
-            <p className="text-sm text-muted-foreground">Guardados por usuarios</p>
+            <p className="text-sm text-muted-foreground">
+              {totalFavoritesFromDB !== null ? 'Guardados por usuarios' : 'Página actual'}
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Promedio Favoritos</CardTitle>
+            <CardTitle>Estilo Más Popular</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {outfits.length > 0 
-                ? Math.round(outfits.reduce((acc, outfit) => acc + outfit.favoritos, 0) / outfits.length)
-                : 0
-              }
+              {(() => {
+                const styleCounts = outfits.reduce((acc, outfit) => {
+                  acc[outfit.estilo] = (acc[outfit.estilo] || 0) + outfit.favoritos
+                  return acc
+                }, {} as Record<string, number>)
+                const mostPopular = Object.entries(styleCounts).sort(([,a], [,b]) => b - a)[0]
+                return mostPopular ? mostPopular[0] : 'N/A'
+              })()}
             </div>
-            <p className="text-sm text-muted-foreground">Por outfit</p>
+            <p className="text-sm text-muted-foreground">Por favoritos</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Outfit Más Guardado</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {mostSavedOutfit ? mostSavedOutfit.count : (
+                (() => {
+                  const topOutfit = outfits.reduce((max, outfit) => 
+                    outfit.favoritos > (max?.favoritos || 0) ? outfit : max, null as Outfit | null)
+                  return topOutfit ? topOutfit.favoritos : 0
+                })()
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {mostSavedOutfit ? (
+                mostSavedOutfit.name.length > 20 
+                  ? mostSavedOutfit.name.substring(0, 20) + '...' 
+                  : mostSavedOutfit.name
+              ) : (
+                (() => {
+                  const topOutfit = outfits.reduce((max, outfit) => 
+                    outfit.favoritos > (max?.favoritos || 0) ? outfit : max, null as Outfit | null)
+                  return topOutfit ? topOutfit.nombre.substring(0, 20) + (topOutfit.nombre.length > 20 ? '...' : '') : 'Sin datos'
+                })()
+              )}
+            </p>
           </CardContent>
         </Card>
       </div>

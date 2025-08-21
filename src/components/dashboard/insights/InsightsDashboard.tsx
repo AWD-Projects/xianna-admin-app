@@ -192,6 +192,7 @@ export function InsightsDashboard() {
             {userAnalytics?.usersByStyle && userAnalytics.usersByStyle.length > 0 ? (
               <Chart
                 type="pie"
+                title="Usuarios"
                 data={userAnalytics.usersByStyle.slice(0, 5).map(item => ({
                   name: item.style,
                   value: item.count
@@ -214,6 +215,7 @@ export function InsightsDashboard() {
             {blogAnalytics?.blogsByCategory && blogAnalytics.blogsByCategory.length > 0 ? (
               <Chart
                 type="column"
+                title="Blogs"
                 data={blogAnalytics.blogsByCategory.slice(0, 5).map(item => ({
                   name: item.category,
                   value: item.count
@@ -239,6 +241,7 @@ export function InsightsDashboard() {
             {outfitAnalytics?.outfitsByStyle && outfitAnalytics.outfitsByStyle.length > 0 ? (
               <Chart
                 type="bar"
+                title="Outfits"
                 data={outfitAnalytics.outfitsByStyle.slice(0, 5).map(item => ({
                   name: item.style,
                   value: item.count
@@ -264,6 +267,7 @@ export function InsightsDashboard() {
             {userAnalytics?.usersByState && userAnalytics.usersByState.length > 0 ? (
               <Chart
                 type="area"
+                title="Usuarios"
                 data={userAnalytics.usersByState.slice(0, 5).map(item => ({
                   name: item.state,
                   value: item.count
@@ -280,6 +284,58 @@ export function InsightsDashboard() {
                   <p className="text-sm">No hay datos de estados disponibles</p>
                   <p className="text-xs mt-1">Los usuarios necesitan completar su información de ubicación</p>
                 </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Promedio de Calificaciones por Blog</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {blogAnalytics?.blogRatings && blogAnalytics.blogRatings.length > 0 ? (
+              <Chart
+                type="column"
+                title="Calificación"
+                data={blogAnalytics.blogRatings.slice(0, 8).map(item => ({
+                  name: item.blog,
+                  value: item.averageRating
+                }))}
+                categories={blogAnalytics.blogRatings.slice(0, 8).map(item => item.blog)}
+                yAxisTitle="Calificación Promedio"
+                color="#3b82f6"
+                height={300}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-gray-500">
+                <p className="text-sm">No hay datos de calificaciones disponibles</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Outfits Favoritos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {outfitAnalytics?.outfitFavorites && outfitAnalytics.outfitFavorites.length > 0 ? (
+              <Chart
+                type="bar"
+                title="Favoritos"
+                data={outfitAnalytics.outfitFavorites.slice(0, 8).map(item => ({
+                  name: item.outfit,
+                  value: item.favorites
+                }))}
+                categories={outfitAnalytics.outfitFavorites.slice(0, 8).map(item => item.outfit)}
+                yAxisTitle="Número de Favoritos"
+                color="#f59e0b"
+                height={300}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-gray-500">
+                <p className="text-sm">No hay datos de favoritos disponibles</p>
               </div>
             )}
           </CardContent>

@@ -147,10 +147,10 @@ export const fetchBlogAnalytics = createAsyncThunk(
       .from('blogs')
       .select('*', { count: 'exact', head: true })
 
-    // Get all blog ratings
+    // Get all blog ratings - simplified query
     const { data: ratings, count: totalRatings } = await supabase
       .from('blogs_calificados')
-      .select('calificacion, blogs!inner(id_categoria, categoria_blog!inner(categoria))')
+      .select('calificacion, blog')
 
     // Calculate average rating
     const allRatings = ratings?.map(r => r.calificacion) || []
@@ -158,16 +158,32 @@ export const fetchBlogAnalytics = createAsyncThunk(
       ? allRatings.reduce((sum, rating) => sum + rating, 0) / allRatings.length 
       : 0
 
+    // Get blog categories separately
+    const { data: blogsWithCategories } = await supabase
+      .from('blogs')
+      .select(`
+        id,
+        titulo,
+        categoria_blog!inner(categoria)
+      `)
+
     // Count by category
     const categoryCounts: { [key: string]: number } = {}
     const ratingCounts: { [key: number]: number } = {}
 
+    // Count ratings by value
     ratings?.forEach(rating => {
-      const category = (rating.blogs as any)?.categoria_blog?.categoria || 'Sin categoría'
-      categoryCounts[category] = (categoryCounts[category] || 0) + 1
-      
       const ratingValue = rating.calificacion
       ratingCounts[ratingValue] = (ratingCounts[ratingValue] || 0) + 1
+    })
+
+    // Count blogs by category (only for rated blogs)
+    const ratedBlogIds = ratings?.map(r => r.blog) || []
+    blogsWithCategories?.forEach(blog => {
+      if (ratedBlogIds.includes(blog.id)) {
+        const category = (blog.categoria_blog as any)?.categoria || 'Sin categoría'
+        categoryCounts[category] = (categoryCounts[category] || 0) + 1
+      }
     })
 
     const blogsByCategory = Object.entries(categoryCounts).map(([category, count]) => ({
@@ -182,13 +198,36 @@ export const fetchBlogAnalytics = createAsyncThunk(
 
     const mostPopularCategory = blogsByCategory[0]?.category || 'N/A'
 
+    // Get average rating per blog
+    const blogRatingMap: { [key: number]: { sum: number; count: number } } = {}
+    ratings?.forEach(rating => {
+      const blogId = rating.blog
+      if (blogId) {
+        if (!blogRatingMap[blogId]) {
+          blogRatingMap[blogId] = { sum: 0, count: 0 }
+        }
+        blogRatingMap[blogId].sum += rating.calificacion
+        blogRatingMap[blogId].count += 1
+      }
+    })
+
+    const blogRatings = Object.entries(blogRatingMap).map(([blogId, data]) => {
+      const blog = blogsWithCategories?.find(b => b.id.toString() === blogId)
+      const blogTitle = blog?.titulo || `Blog ${blogId}`
+      return {
+        blog: blogTitle.length > 15 ? blogTitle.substring(0, 15) + '...' : blogTitle,
+        averageRating: Math.round((data.sum / data.count) * 10) / 10
+      }
+    }).sort((a, b) => b.averageRating - a.averageRating).slice(0, 10)
+
     return {
       totalBlogs: totalBlogs || 0,
       totalRatings: totalRatings || 0,
       averageRating: Math.round(averageRating * 10) / 10,
       mostPopularCategory,
       blogsByCategory,
-      ratingDistribution
+      ratingDistribution,
+      blogRatings
     }
   }
 )
@@ -274,12 +313,19 @@ export const fetchOutfitAnalytics = createAsyncThunk(
       count
     })).sort((a, b) => b.count - a.count)
 
+    // Create outfit favorites array for chart
+    const outfitFavoritesArray = Object.entries(outfitFavorites).map(([outfit, favorites]) => ({
+      outfit: outfit.length > 15 ? outfit.substring(0, 15) + '...' : outfit,
+      favorites
+    })).sort((a, b) => b.favorites - a.favorites).slice(0, 10)
+
     return {
       totalOutfits: totalOutfits || 0,
       totalFavorites: totalFavorites || 0,
       mostSavedOutfit,
       outfitsByStyle,
-      outfitsByOccasion
+      outfitsByOccasion,
+      outfitFavorites: outfitFavoritesArray
     }
   }
 )

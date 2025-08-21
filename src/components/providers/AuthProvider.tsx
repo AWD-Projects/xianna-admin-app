@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     )
 
     return () => subscription.unsubscribe()
-  }, [dispatch, supabase])
+  }, [dispatch]) // Removed supabase dependency
 
   return (
     <AuthContext.Provider value={{}}>
