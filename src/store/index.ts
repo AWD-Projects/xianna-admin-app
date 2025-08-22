@@ -9,6 +9,7 @@ import insightsSlice from './slices/insightsSlice'
 import advisorSlice from './slices/advisorSlice'
 import styleSlice from './slices/styleSlice'
 import occasionSlice from './slices/occasionSlice'
+import newsletterSlice from './slices/newsletterSlice'
 
 export const store = configureStore({
   reducer: {
@@ -21,6 +22,7 @@ export const store = configureStore({
     advisor: advisorSlice,
     style: styleSlice,
     occasion: occasionSlice,
+    newsletter: newsletterSlice,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

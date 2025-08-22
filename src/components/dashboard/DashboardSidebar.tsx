@@ -3,12 +3,13 @@
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { X, BarChart3, Users, FileText, Shirt, HelpCircle, UserCheck, Palette, Calendar } from 'lucide-react'
+import { X, BarChart3, Users, FileText, Shirt, HelpCircle, UserCheck, Palette, Calendar, Mail } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navigation = [
   { name: 'Insights', href: '/dashboard', icon: BarChart3 },
   { name: 'Usuarios', href: '/dashboard/users', icon: Users },
+  { name: 'Newsletter', href: '/dashboard/newsletter', icon: Mail },
   { name: 'Blogs', href: '/dashboard/blogs', icon: FileText },
   { name: 'Catálogo', href: '/dashboard/catalog', icon: Shirt },
   { name: 'Asesor@s', href: '/dashboard/advisors', icon: UserCheck },
@@ -41,7 +42,7 @@ export function DashboardSidebar({ open, onClose }: DashboardSidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 px-4 space-y-2">
         {navigation.map((item) => {
-          const isActive = pathname === item.href
+          const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
           return (
             <Link
               key={item.name}

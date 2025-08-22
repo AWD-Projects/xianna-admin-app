@@ -383,6 +383,55 @@ export interface AdminSettings {
   theme: 'light' | 'dark' | 'system'
 }
 
+// Newsletter campaign types
+export interface NewsletterCampaign {
+  id: number
+  created_at: string
+  nombre: string
+  asunto: string
+  template_usado: string
+  numero_usuarios_enviados: number
+  filtros_aplicados: string
+  emails: string
+}
+
+export interface NewsletterTemplate {
+  id: string
+  name: string
+  subject: string
+  htmlContent: string
+  textContent: string
+}
+
+export interface NewsletterFormData {
+  nombre: string
+  asunto: string
+  template_usado: string
+  filtros_aplicados: NewsletterFilters
+  selectedEmails: string[]
+}
+
+export interface NewsletterFilters {
+  estado?: string
+  genero?: string
+  edad_min?: number
+  edad_max?: number
+  tipo_estilo?: string
+  ocupacion?: string
+}
+
+export interface SelectedUser {
+  id: number
+  nombre: string
+  correo: string
+  estado: string
+  genero: string
+  edad: number
+  tipo_estilo: number
+  ocupacion: string
+  selected: boolean
+}
+
 // Error types
 export interface AppError {
   code: string
