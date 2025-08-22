@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { createQuestion, updateQuestion, fetchStyles } from '@/store/slices/questionnaireSlice'
 import type { AppDispatch, RootState } from '@/store'
 import type { Question, Answer } from '@/types'
-import { Plus, Trash2, ArrowLeft } from 'lucide-react'
+import { Plus, Trash2, Save } from 'lucide-react'
 import { toast } from 'sonner'
 
 const answerSchema = z.object({
@@ -126,11 +126,7 @@ export function QuestionForm({ question, onSuccess, onCancel }: QuestionFormProp
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={onCancel}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Volver
-        </Button>
+      <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
             {question ? 'Editar Pregunta' : 'Nueva Pregunta'}
@@ -138,6 +134,11 @@ export function QuestionForm({ question, onSuccess, onCancel }: QuestionFormProp
           <p className="text-gray-600 mt-2">
             {question ? 'Modifica la pregunta y sus respuestas' : 'Crea una nueva pregunta para el cuestionario'}
           </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onCancel}>
+            Cancelar
+          </Button>
         </div>
       </div>
 
@@ -274,13 +275,18 @@ export function QuestionForm({ question, onSuccess, onCancel }: QuestionFormProp
           </CardContent>
         </Card>
 
-        {/* Actions */}
-        <div className="flex gap-3">
-          <Button type="submit" disabled={loading} className="flex-1">
-            {loading ? 'Guardando...' : question ? 'Actualizar Pregunta' : 'Crear Pregunta'}
-          </Button>
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancelar
+        {/* Submit Button */}
+        <div className="flex justify-end">
+          <Button 
+            type="submit" 
+            disabled={loading}
+            className="flex items-center gap-2"
+          >
+            <Save className="h-4 w-4" />
+            {loading 
+              ? 'Guardando...' 
+              : (question ? 'Actualizar Pregunta' : 'Crear Pregunta')
+            }
           </Button>
         </div>
       </form>

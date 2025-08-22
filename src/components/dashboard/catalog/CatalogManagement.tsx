@@ -13,7 +13,7 @@ import { OutfitForm } from '@/components/dashboard/outfits/OutfitForm'
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
 import type { AppDispatch, RootState } from '@/store'
 import type { Outfit } from '@/types'
-import { Plus, Heart, Shirt, Search, X, Edit, Trash2 } from 'lucide-react'
+import { Plus, Heart, Shirt, Search, X, Edit, Trash2, UserCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
 
@@ -439,16 +439,27 @@ export function CatalogManagement() {
                   {outfit.descripcion}
                 </p>
                 
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {outfit.ocasiones.slice(0, 2).map((ocasion, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">
-                      {ocasion}
-                    </Badge>
-                  ))}
-                  {outfit.ocasiones.length > 2 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{outfit.ocasiones.length - 2}
-                    </Badge>
+                <div className="space-y-2 mb-3">
+                  <div className="flex flex-wrap gap-1">
+                    {outfit.ocasiones.slice(0, 2).map((ocasion, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {ocasion}
+                      </Badge>
+                    ))}
+                    {outfit.ocasiones.length > 2 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{outfit.ocasiones.length - 2}
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {outfit.advisor && (
+                    <div className="flex items-center gap-1 text-xs text-gray-600">
+                      <UserCheck className="h-3 w-3" />
+                      <span className="truncate">
+                        {outfit.advisor.nombre} - {outfit.advisor.especialidad}
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>

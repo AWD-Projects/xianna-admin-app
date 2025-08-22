@@ -2,7 +2,8 @@
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { X, BarChart3, Users, FileText, Shirt, HelpCircle } from 'lucide-react'
+import Image from 'next/image'
+import { X, BarChart3, Users, FileText, Shirt, HelpCircle, UserCheck, Palette, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navigation = [
@@ -10,6 +11,9 @@ const navigation = [
   { name: 'Usuarios', href: '/dashboard/users', icon: Users },
   { name: 'Blogs', href: '/dashboard/blogs', icon: FileText },
   { name: 'Catálogo', href: '/dashboard/catalog', icon: Shirt },
+  { name: 'Asesor@s', href: '/dashboard/advisors', icon: UserCheck },
+  { name: 'Estilos', href: '/dashboard/styles', icon: Palette },
+  { name: 'Ocasiones', href: '/dashboard/occasions', icon: Calendar },
   { name: 'Formulario', href: '/dashboard/questionnaire', icon: HelpCircle },
 ]
 
@@ -25,9 +29,11 @@ export function DashboardSidebar({ open, onClose }: DashboardSidebarProps) {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="flex items-center justify-center px-6 py-8">
-        <img
+        <Image
           src="/images/xianna.png"
           alt="Xianna Logo"
+          width={128}
+          height={48}
           className="w-32 h-auto"
         />
       </div>

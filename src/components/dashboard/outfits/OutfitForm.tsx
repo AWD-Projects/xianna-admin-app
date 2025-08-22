@@ -5,10 +5,12 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useForm, Controller, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { createOutfit, updateOutfit, fetchStyles, fetchOccasions } from '@/store/slices/outfitSlice'
+import { fetchAdvisors } from '@/store/slices/advisorSlice'
 import { createClient } from '@/lib/supabase/client'
 import type { AppDispatch, RootState } from '@/store'
 import type { Outfit, OutfitFormData } from '@/types'
@@ -26,7 +28,8 @@ const outfitSchema = z.object({
   id_estilo: z.number().min(1, 'Selecciona un estilo'),
   ocasiones: z.array(z.number()).min(1, 'Selecciona al menos una ocasión'),
   imagen: z.any().optional(),
-  prendas: z.array(prendaSchema).min(1, 'Agrega al menos una prenda')
+  prendas: z.array(prendaSchema).min(1, 'Agrega al menos una prenda'),
+  advisor_id: z.number().optional()
 })
 
 interface OutfitFormProps {
@@ -39,6 +42,7 @@ interface OutfitFormProps {
 export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: OutfitFormProps) {
   const dispatch = useDispatch<AppDispatch>()
   const { loading, styles, occasions } = useSelector((state: RootState) => state.outfit)
+  const { advisors } = useSelector((state: RootState) => state.advisor)
   
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [selectedOccasions, setSelectedOccasions] = useState<number[]>([])
@@ -59,7 +63,8 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
       descripcion: initialData?.descripcion || '',
       id_estilo: initialData?.id_estilo || 0,
       ocasiones: [],
-      prendas: [{ nombre: '', link: '' }]
+      prendas: [{ nombre: '', link: '' }],
+      advisor_id: initialData?.advisor_id || undefined
     }
   })
 
@@ -71,6 +76,7 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
   useEffect(() => {
     dispatch(fetchStyles())
     dispatch(fetchOccasions())
+    dispatch(fetchAdvisors({ page: 1, pageSize: 100, activeFilter: 'true' }))
   }, [dispatch])
 
   const fetchPrendasForOutfit = useCallback(async (outfitId: number) => {
@@ -114,7 +120,8 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
         descripcion: initialData.descripcion || '',
         id_estilo: initialData.id_estilo || 0,
         ocasiones: occasionIds,
-        prendas: [] // Will be populated by fetchPrendasForOutfit
+        prendas: [], // Will be populated by fetchPrendasForOutfit
+        advisor_id: initialData.advisor_id || undefined
       })
       
       // Set image preview if exists
@@ -239,25 +246,51 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
               )}
             </div>
 
-            {/* Estilo */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Estilo *
-              </label>
-              <select
-                {...register('id_estilo', { valueAsNumber: true })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
-              >
-                <option value={0}>Selecciona un estilo</option>
-                {styles.map((style) => (
-                  <option key={style.id} value={style.id}>
-                    {style.tipo}
-                  </option>
-                ))}
-              </select>
-              {errors.id_estilo && (
-                <p className="text-red-500 text-sm mt-1">{errors.id_estilo.message}</p>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Estilo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Estilo *
+                </label>
+                <select
+                  {...register('id_estilo', { valueAsNumber: true })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+                >
+                  <option value={0}>Selecciona un estilo</option>
+                  {styles.map((style) => (
+                    <option key={style.id} value={style.id}>
+                      {style.tipo}
+                    </option>
+                  ))}
+                </select>
+                {errors.id_estilo && (
+                  <p className="text-red-500 text-sm mt-1">{errors.id_estilo.message}</p>
+                )}
+              </div>
+
+              {/* Asesor@ */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Asesor@ (Opcional)
+                </label>
+                <select
+                  {...register('advisor_id', { valueAsNumber: true })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+                >
+                  <option value={0}>Sin asesor@ asignad@</option>
+                  {advisors.filter(advisor => advisor.activo).map((advisor) => (
+                    <option key={advisor.id} value={advisor.id}>
+                      {advisor.nombre} - {advisor.especialidad}
+                    </option>
+                  ))}
+                </select>
+                {errors.advisor_id && (
+                  <p className="text-red-500 text-sm mt-1">{errors.advisor_id.message}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Selecciona un@ asesor@ para asociarlo con este outfit
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -340,9 +373,11 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
                 </label>
                 <div className="space-y-4">
                   <div className="relative inline-block">
-                    <img
+                    <Image
                       src={imagePreview}
                       alt="Preview del outfit"
+                      width={192}
+                      height={192}
                       className="w-48 h-48 object-cover rounded-lg border shadow-sm"
                     />
                     <button

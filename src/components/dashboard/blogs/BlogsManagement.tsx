@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
+import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -323,10 +324,11 @@ export function BlogsManagement() {
         {blogs.map((blog) => (
           <Card key={blog.id} className="overflow-hidden">
             <div className="aspect-video bg-gray-200 relative">
-              <img
+              <Image
                 src={blog.image}
                 alt={blog.titulo}
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
               />
               <div className="absolute top-2 right-2">
                 <Badge variant="secondary">{blog.categoria}</Badge>

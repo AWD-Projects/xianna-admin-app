@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { RichTextEditor } from '@/components/ui/rich-text-editor'
@@ -333,9 +334,11 @@ export function BlogForm({ onSuccess, onCancel, blogId, initialData }: BlogFormP
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {previewUrls.map((url, index) => (
                   <div key={index} className="relative group">
-                    <img
+                    <Image
                       src={url}
                       alt={`Preview ${index + 1}`}
+                      width={96}
+                      height={96}
                       className="w-full h-24 object-cover rounded-lg border"
                     />
                     <button

@@ -54,7 +54,8 @@ export const fetchOutfits = createAsyncThunk(
       .from('outfits')
       .select(`
         *,
-        estilos!inner(tipo)
+        estilos!inner(tipo),
+        advisors(id, nombre, especialidad)
       `, { count: 'exact' })
 
     // Apply search filter
@@ -141,7 +142,12 @@ export const fetchOutfits = createAsyncThunk(
           estilo: outfit.estilos.tipo,
           imagen: imageUrl,
           ocasiones: ocasiones,
-          favoritos: favoritesCount || 0
+          favoritos: favoritesCount || 0,
+          advisor: outfit.advisors ? {
+            id: outfit.advisors.id,
+            nombre: outfit.advisors.nombre,
+            especialidad: outfit.advisors.especialidad
+          } : undefined
         }
       })
     )
@@ -199,13 +205,20 @@ export const createOutfit = createAsyncThunk(
     const supabase = createClient()
     
     // Create outfit
+    const outfitInsert: any = {
+      nombre: outfitData.nombre,
+      descripcion: outfitData.descripcion,
+      id_estilo: outfitData.id_estilo
+    }
+    
+    // Only add advisor_id if it's provided and not 0
+    if (outfitData.advisor_id && outfitData.advisor_id > 0) {
+      outfitInsert.advisor_id = outfitData.advisor_id
+    }
+
     const { data, error } = await supabase
       .from('outfits')
-      .insert({
-        nombre: outfitData.nombre,
-        descripcion: outfitData.descripcion,
-        id_estilo: outfitData.id_estilo
-      })
+      .insert(outfitInsert)
       .select()
       .single()
 
@@ -253,13 +266,20 @@ export const updateOutfit = createAsyncThunk(
   async ({ id, outfitData }: { id: number; outfitData: Partial<OutfitFormData> }) => {
     const supabase = createClient()
     
+    const outfitUpdate: any = {
+      nombre: outfitData.nombre,
+      descripcion: outfitData.descripcion,
+      id_estilo: outfitData.id_estilo
+    }
+    
+    // Handle advisor_id update (including setting to null)
+    if (outfitData.advisor_id !== undefined) {
+      outfitUpdate.advisor_id = outfitData.advisor_id && outfitData.advisor_id > 0 ? outfitData.advisor_id : null
+    }
+
     const { data, error } = await supabase
       .from('outfits')
-      .update({
-        nombre: outfitData.nombre,
-        descripcion: outfitData.descripcion,
-        id_estilo: outfitData.id_estilo
-      })
+      .update(outfitUpdate)
       .eq('id', id)
       .select()
       .single()

@@ -6,6 +6,23 @@ export interface AdminUser {
   updated_at: string
 }
 
+// Advisor management types
+export interface Advisor {
+  id: number
+  created_at: string
+  nombre: string
+  correo: string
+  genero: string
+  especialidad: string
+  anos_experiencia: number
+  biografia: string
+  contact_link: string
+  portfolio_url: string
+  pais: string
+  estado: string
+  activo: boolean
+}
+
 // User management types
 export interface User {
   id: number
@@ -84,6 +101,12 @@ export interface Outfit {
   created_at: string
   updated_at: string
   ocasion?: string
+  advisor_id?: number
+  advisor?: {
+    id: number
+    nombre: string
+    especialidad: string
+  }
   estilos?: {
     id: number
     tipo: string
@@ -190,6 +213,32 @@ export interface OutfitFormData {
   ocasiones: number[]
   imagen?: File
   prendas: PrendaFormData[]
+  advisor_id?: number
+}
+
+export interface AdvisorFormData {
+  nombre: string
+  correo: string
+  genero: string
+  especialidad: string
+  anos_experiencia: number
+  biografia: string
+  contact_link: string
+  portfolio_url: string
+  pais: string
+  estado: string
+  activo: boolean
+}
+
+// Style management types
+export interface StyleFormData {
+  tipo: string
+  descripcion: string
+}
+
+// Occasion management types  
+export interface OccasionFormData {
+  ocasion: string
 }
 
 export interface PrendaFormData {

@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { LoginForm } from '@/components/auth/LoginForm'
 
 export default function LoginPage() {
@@ -17,9 +18,11 @@ export default function LoginPage() {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <img 
+            <Image 
               src="/images/xianna.png" 
               alt="Xianna Logo" 
+              width={256}
+              height={96}
               className="w-64 mx-auto mb-6"
             />
             <h2 className="text-2xl font-bold text-gray-900">Panel de Administración</h2>

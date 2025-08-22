@@ -6,6 +6,9 @@ import outfitSlice from './slices/outfitSlice'
 import userSlice from './slices/userSlice'
 import questionnaireSlice from './slices/questionnaireSlice'
 import insightsSlice from './slices/insightsSlice'
+import advisorSlice from './slices/advisorSlice'
+import styleSlice from './slices/styleSlice'
+import occasionSlice from './slices/occasionSlice'
 
 export const store = configureStore({
   reducer: {
@@ -15,6 +18,9 @@ export const store = configureStore({
     user: userSlice,
     questionnaire: questionnaireSlice,
     insights: insightsSlice,
+    advisor: advisorSlice,
+    style: styleSlice,
+    occasion: occasionSlice,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
