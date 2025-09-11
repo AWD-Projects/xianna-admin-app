@@ -126,8 +126,8 @@ export function BlogForm({ onSuccess, onCancel, blogId, initialData }: BlogFormP
         toast.error(`${file.name} no es una imagen válida`)
         return false
       }
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast.error(`${file.name} es muy grande (máximo 5MB)`)
+      if (file.size > 6 * 1024 * 1024) { // 6MB limit
+        toast.error(`${file.name} es muy grande (máximo 6MB)`)
         return false
       }
       return true
@@ -323,7 +323,7 @@ export function BlogForm({ onSuccess, onCancel, blogId, initialData }: BlogFormP
                     Haz clic para subir imágenes o arrastra aquí
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    PNG, JPG hasta 5MB cada una
+                    PNG, JPG hasta 6MB cada una
                   </p>
                 </label>
               </div>

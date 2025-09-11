@@ -360,7 +360,7 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
                       Haz clic para seleccionar la imagen principal del outfit
                     </p>
                     <p className="text-xs text-gray-500">
-                      PNG, JPG hasta 5MB
+                      PNG, JPG hasta 6MB
                     </p>
                   </label>
                 </div>
