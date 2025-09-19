@@ -279,7 +279,7 @@ export const createOutfit = createAsyncThunk(
 
 export const updateOutfit = createAsyncThunk(
   'outfit/updateOutfit',
-  async ({ id, outfitData }: { id: number; outfitData: Partial<OutfitFormData> }) => {
+  async ({ id, outfitData }: { id: number; outfitData: Partial<OutfitFormData> & { prendasToDelete?: string[], prendasExistentes?: any[] } }) => {
     const supabase = createClient()
     
     const outfitUpdate: any = {
@@ -346,37 +346,89 @@ export const updateOutfit = createAsyncThunk(
 
     // Update prendas if provided
     if (outfitData.prendas) {
-      // Get existing prendas to delete their images
+      // Get existing prendas with their IDs
       const { data: existingPrendas } = await supabase
         .from('prendas')
-        .select('id')
+        .select('id, nombre, link')
         .eq('id_outfit', id)
 
-      // Delete existing prenda images
+      // Create a map of existing prendas by their content for comparison
+      const existingPrendasMap = new Map()
       if (existingPrendas) {
-        for (const prenda of existingPrendas) {
-          const { data: prendaFiles } = await supabase.storage
-            .from('Outfits')
-            .list(`uploads/${id}/prendas/${prenda.id}`)
+        existingPrendas.forEach(prenda => {
+          const key = `${prenda.nombre}|||${prenda.link}`
+          existingPrendasMap.set(key, prenda.id)
+        })
+      }
+
+      // Track which prendas to keep (those that exist in both old and new)
+      const prendasToKeep = new Set()
+      const newPrendas = []
+      
+      // Process each prenda in the form data
+      for (let i = 0; i < outfitData.prendas.length; i++) {
+        const prenda = outfitData.prendas[i]
+        const key = `${prenda.nombre}|||${prenda.link}`
+        
+        if (existingPrendasMap.has(key)) {
+          // This prenda already exists, keep it
+          const existingPrendaId = existingPrendasMap.get(key)
+          prendasToKeep.add(existingPrendaId)
           
-          if (prendaFiles && prendaFiles.length > 0) {
-            const filePaths = prendaFiles.map(file => `uploads/${id}/prendas/${prenda.id}/${file.name}`)
+          // Only upload new image if one was provided
+          if (prenda.imagen) {
+            // Delete existing image for this prenda
+            const { data: prendaFiles } = await supabase.storage
+              .from('Outfits')
+              .list(`uploads/${id}/prendas/${existingPrendaId}`)
+            
+            if (prendaFiles && prendaFiles.length > 0) {
+              const filePaths = prendaFiles.map(file => `uploads/${id}/prendas/${existingPrendaId}/${file.name}`)
+              await supabase.storage
+                .from('Outfits')
+                .remove(filePaths)
+            }
+            
+            // Upload new image
+            const fileName = `${Date.now()}_${prenda.imagen.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
             await supabase.storage
               .from('Outfits')
-              .remove(filePaths)
+              .upload(`uploads/${id}/prendas/${existingPrendaId}/${fileName}`, prenda.imagen)
+          }
+        } else {
+          // This is a new prenda
+          newPrendas.push(prenda)
+        }
+      }
+
+      // Delete prendas that are no longer in the form
+      if (existingPrendas) {
+        for (const prenda of existingPrendas) {
+          if (!prendasToKeep.has(prenda.id)) {
+            // Delete images for this prenda
+            const { data: prendaFiles } = await supabase.storage
+              .from('Outfits')
+              .list(`uploads/${id}/prendas/${prenda.id}`)
+            
+            if (prendaFiles && prendaFiles.length > 0) {
+              const filePaths = prendaFiles.map(file => `uploads/${id}/prendas/${prenda.id}/${file.name}`)
+              await supabase.storage
+                .from('Outfits')
+                .remove(filePaths)
+            }
+            
+            // Delete the prenda record
+            await supabase
+              .from('prendas')
+              .delete()
+              .eq('id', prenda.id)
           }
         }
       }
 
-      // Delete existing prendas
-      await supabase
-        .from('prendas')
-        .delete()
-        .eq('id_outfit', id)
-
       // Insert new prendas
-      if (outfitData.prendas.length > 0) {
-        const prendaInserts = outfitData.prendas.map(prenda => ({
+      if (newPrendas.length > 0) {
+        const prendaInserts = newPrendas.map(prenda => ({
           nombre: prenda.nombre,
           link: prenda.link,
           id_outfit: id
@@ -387,10 +439,10 @@ export const updateOutfit = createAsyncThunk(
           .insert(prendaInserts)
           .select('id')
 
-        // Upload new prenda images if provided
+        // Upload images for new prendas
         if (insertedPrendas) {
-          for (let i = 0; i < outfitData.prendas.length; i++) {
-            const prenda = outfitData.prendas[i]
+          for (let i = 0; i < newPrendas.length; i++) {
+            const prenda = newPrendas[i]
             const prendaId = insertedPrendas[i].id
             
             if (prenda.imagen) {
