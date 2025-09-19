@@ -30,6 +30,21 @@ const initialState: BlogState = {
   }
 }
 
+// Helper function to extract file path from URL
+const getFilePathFromUrl = (url: string, blogId: number): string | null => {
+  try {
+    // Extract the path after the bucket name
+    const urlParts = url.split('/')
+    const uploadsIndex = urlParts.findIndex(part => part === 'uploads')
+    if (uploadsIndex === -1) return null
+    
+    // Return path from 'uploads' onward
+    return urlParts.slice(uploadsIndex).join('/')
+  } catch {
+    return null
+  }
+}
+
 // Async thunks
 export const fetchBlogs = createAsyncThunk(
   'blog/fetchBlogs',
@@ -237,9 +252,10 @@ export const createBlog = createAsyncThunk(
 
 export const updateBlog = createAsyncThunk(
   'blog/updateBlog',
-  async ({ id, blogData }: { id: number; blogData: Partial<BlogFormData> }) => {
+  async ({ id, blogData }: { id: number; blogData: Partial<BlogFormData> & { imagesToDelete?: string[] } }) => {
     const supabase = createClient()
     
+    // Update blog data
     const { data, error } = await supabase
       .from('blogs')
       .update({
@@ -254,13 +270,36 @@ export const updateBlog = createAsyncThunk(
 
     if (error) throw error
 
+    // Delete removed images if specified
+    if (blogData.imagesToDelete && blogData.imagesToDelete.length > 0) {
+      const imagePaths = blogData.imagesToDelete
+        .map(url => getFilePathFromUrl(url, id))
+        .filter((path): path is string => path !== null)
+      
+      if (imagePaths.length > 0) {
+        const { error: deleteError } = await supabase.storage
+          .from('Blogs')
+          .remove(imagePaths)
+        
+        if (deleteError) {
+          console.error('Error deleting images:', deleteError)
+          // Don't throw here to avoid blocking the update
+        }
+      }
+    }
+
     // Upload new images if provided
     if (blogData.images && blogData.images.length > 0) {
       for (const image of blogData.images) {
         const fileName = `${Date.now()}_${image.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
-        await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('Blogs')
           .upload(`uploads/${id}/${fileName}`, image)
+        
+        if (uploadError) {
+          console.error('Error uploading image:', uploadError)
+          // Don't throw here to avoid blocking the update
+        }
       }
     }
 

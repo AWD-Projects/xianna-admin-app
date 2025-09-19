@@ -203,7 +203,8 @@ export interface BlogFormData {
   descripcion: string
   contenido: string
   id_categoria: number
-  images?: File[]
+  images?: File[] // Imágenes nuevas a subir
+  imagesToDelete?: string[] // URLs de imágenes existentes a eliminar
 }
 
 export interface OutfitFormData {

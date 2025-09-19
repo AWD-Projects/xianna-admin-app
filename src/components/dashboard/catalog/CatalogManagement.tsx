@@ -13,7 +13,7 @@ import { OutfitForm } from '@/components/dashboard/outfits/OutfitForm'
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
 import type { AppDispatch, RootState } from '@/store'
 import type { Outfit } from '@/types'
-import { Plus, Heart, Shirt, Search, X, Edit, Trash2, UserCheck } from 'lucide-react'
+import { Plus, Bookmark, Shirt, Search, X, Edit, Trash2, UserCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
 
@@ -426,7 +426,7 @@ export function CatalogManagement() {
                 <Badge variant="secondary">{outfit.estilo}</Badge>
               </div>
               <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-white/90 rounded-full px-2 py-1">
-                <Heart className="h-3 w-3 text-red-500" />
+                <Bookmark className="h-3 w-3 text-red-500" />
                 <span className="text-xs font-medium">{outfit.favoritos}</span>
               </div>
             </div>

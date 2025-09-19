@@ -43,15 +43,20 @@ interface BlogFormProps {
   initialData?: Partial<Blog> // For prefilling form data
 }
 
+interface ImageItem {
+  url: string
+  file?: File // Only for new images
+  isExisting: boolean // true for existing images from DB
+}
+
 export function BlogForm({ onSuccess, onCancel, blogId, initialData }: BlogFormProps) {
   const dispatch = useDispatch<AppDispatch>()
   const { categories, loading, currentBlog } = useSelector((state: RootState) => state.blog)
   
   const isEditing = !!blogId
   
-  
-  const [selectedImages, setSelectedImages] = useState<File[]>([])
-  const [previewUrls, setPreviewUrls] = useState<string[]>([])
+  const [images, setImages] = useState<ImageItem[]>([])
+  const [originalImages, setOriginalImages] = useState<string[]>([]) // Track original images for comparison
 
   const {
     register,
@@ -69,7 +74,6 @@ export function BlogForm({ onSuccess, onCancel, blogId, initialData }: BlogFormP
       id_categoria: initialData?.id_categoria || 0
     }
   })
-
 
   useEffect(() => {
     dispatch(fetchBlogCategories())
@@ -89,14 +93,19 @@ export function BlogForm({ onSuccess, onCancel, blogId, initialData }: BlogFormP
         
         // Set existing images if available
         if (initialData.images && initialData.images.length > 0) {
-          setPreviewUrls(initialData.images)
+          const existingImages = initialData.images.map(url => ({
+            url,
+            isExisting: true
+          }))
+          setImages(existingImages)
+          setOriginalImages([...initialData.images])
         }
       } else if (blogId) {
         // Fetch blog data if not provided
         dispatch(fetchBlogById(blogId))
       }
     }
-  }, [isEditing, initialData, blogId, dispatch])
+  }, [isEditing, initialData, blogId, dispatch, reset])
   
   // Update form when blog data is loaded from API
   useEffect(() => {
@@ -110,10 +119,15 @@ export function BlogForm({ onSuccess, onCancel, blogId, initialData }: BlogFormP
       
       // Set existing images if available
       if (currentBlog.images && currentBlog.images.length > 0) {
-        setPreviewUrls(currentBlog.images)
+        const existingImages = currentBlog.images.map(url => ({
+          url,
+          isExisting: true
+        }))
+        setImages(existingImages)
+        setOriginalImages([...currentBlog.images])
       }
     }
-  }, [currentBlog, isEditing, blogId, initialData])
+  }, [currentBlog, isEditing, blogId, initialData, reset])
 
   // Handle image selection
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -134,27 +148,46 @@ export function BlogForm({ onSuccess, onCancel, blogId, initialData }: BlogFormP
     })
 
     if (validFiles.length > 0) {
-      setSelectedImages(prev => [...prev, ...validFiles])
+      const newImages = validFiles.map(file => ({
+        url: URL.createObjectURL(file),
+        file,
+        isExisting: false
+      }))
       
-      // Create preview URLs
-      const newUrls = validFiles.map(file => URL.createObjectURL(file))
-      setPreviewUrls(prev => [...prev, ...newUrls])
+      setImages(prev => [...prev, ...newImages])
     }
   }
 
   // Remove image
   const removeImage = (index: number) => {
-    URL.revokeObjectURL(previewUrls[index])
-    setSelectedImages(prev => prev.filter((_, i) => i !== index))
-    setPreviewUrls(prev => prev.filter((_, i) => i !== index))
+    setImages(prev => {
+      const imageToRemove = prev[index]
+      // Clean up object URL for new images
+      if (!imageToRemove.isExisting && imageToRemove.url.startsWith('blob:')) {
+        URL.revokeObjectURL(imageToRemove.url)
+      }
+      return prev.filter((_, i) => i !== index)
+    })
   }
 
   // Handle form submission
   const onSubmit = async (data: BlogFormValues) => {
     try {
+      // Get new images (files) to upload
+      const newImages = images.filter(img => !img.isExisting && img.file).map(img => img.file!)
+      
+      // Get current existing images (URLs that are still in the form)
+      const currentExistingImages = images.filter(img => img.isExisting).map(img => img.url)
+      
+      // Find images that were removed (in original but not in current)
+      const imagesToDelete = originalImages.filter(originalUrl => 
+        !currentExistingImages.includes(originalUrl)
+      )
+
       const blogData: BlogFormData = {
         ...data,
-        images: selectedImages
+        images: newImages,
+        imagesToDelete // Add this to track images to delete
       }
 
       if (isEditing && blogId) {
@@ -165,10 +198,10 @@ export function BlogForm({ onSuccess, onCancel, blogId, initialData }: BlogFormP
         toast.success('Blog creado exitosamente')
       }
       
-      // Cleanup preview URLs (only for newly created URLs)
-      previewUrls.forEach((url, index) => {
-        if (selectedImages[index]) {
-          URL.revokeObjectURL(url)
+      // Cleanup preview URLs for new images
+      images.forEach(img => {
+        if (!img.isExisting && img.url.startsWith('blob:')) {
+          URL.revokeObjectURL(img.url)
         }
       })
       
@@ -185,10 +218,13 @@ export function BlogForm({ onSuccess, onCancel, blogId, initialData }: BlogFormP
   // Cleanup effect
   useEffect(() => {
     return () => {
-      previewUrls.forEach(url => URL.revokeObjectURL(url))
+      images.forEach(img => {
+        if (!img.isExisting && img.url.startsWith('blob:')) {
+          URL.revokeObjectURL(img.url)
+        }
+      })
     }
   }, [])
-
 
   return (
     <div className="space-y-6">
@@ -330,12 +366,12 @@ export function BlogForm({ onSuccess, onCancel, blogId, initialData }: BlogFormP
             </div>
 
             {/* Image Previews */}
-            {previewUrls.length > 0 && (
+            {images.length > 0 && (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {previewUrls.map((url, index) => (
+                {images.map((image, index) => (
                   <div key={index} className="relative group">
                     <Image
-                      src={url}
+                      src={image.url}
                       alt={`Preview ${index + 1}`}
                       width={96}
                       height={96}
@@ -348,6 +384,14 @@ export function BlogForm({ onSuccess, onCancel, blogId, initialData }: BlogFormP
                     >
                       <X className="h-3 w-3" />
                     </button>
+                    {/* Indicator for existing vs new images */}
+                    <div className="absolute bottom-1 left-1">
+                      <span className={`text-xs px-1 py-0.5 rounded text-white ${
+                        image.isExisting ? 'bg-blue-500' : 'bg-green-500'
+                      }`}>
+                        {image.isExisting ? 'Existente' : 'Nueva'}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
