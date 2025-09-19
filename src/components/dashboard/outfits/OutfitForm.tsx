@@ -14,12 +14,13 @@ import { fetchAdvisors } from '@/store/slices/advisorSlice'
 import { createClient } from '@/lib/supabase/client'
 import type { AppDispatch, RootState } from '@/store'
 import type { Outfit, OutfitFormData } from '@/types'
-import { Plus, Trash2, Upload, X, Save } from 'lucide-react'
+import { Plus, Trash2, Upload, X, Save, Camera } from 'lucide-react'
 import { toast } from 'sonner'
 
 const prendaSchema = z.object({
   nombre: z.string().min(1, 'El nombre de la prenda es requerido'),
-  link: z.string().url('Debe ser una URL válida')
+  link: z.string().url('Debe ser una URL válida'),
+  imagen: z.any().optional()
 })
 
 const outfitSchema = z.object({
@@ -31,6 +32,14 @@ const outfitSchema = z.object({
   prendas: z.array(prendaSchema).min(1, 'Agrega al menos una prenda'),
   advisor_id: z.number().optional()
 })
+
+interface PrendaWithImage {
+  nombre: string
+  link: string
+  imagen?: File
+  imagenPreview?: string
+  imagenExistente?: string // For existing images when editing
+}
 
 interface OutfitFormProps {
   outfitId?: number
@@ -46,6 +55,9 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
   
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [selectedOccasions, setSelectedOccasions] = useState<number[]>([])
+  const [prendasWithImages, setPrendasWithImages] = useState<PrendaWithImage[]>([
+    { nombre: '', link: '' }
+  ])
 
   const isEditing = !!outfitId
 
@@ -55,7 +67,8 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
     handleSubmit,
     formState: { errors, isSubmitting },
     setValue,
-    reset
+    reset,
+    watch
   } = useForm<OutfitFormData>({
     resolver: zodResolver(outfitSchema),
     defaultValues: {
@@ -73,6 +86,9 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
     name: 'prendas'
   })
 
+  // Watch prendas to sync with prendasWithImages
+  const watchedPrendas = watch('prendas')
+
   useEffect(() => {
     dispatch(fetchStyles())
     dispatch(fetchOccasions())
@@ -84,35 +100,62 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
       const supabase = createClient()
       const { data: prendas, error } = await supabase
         .from('prendas')
-        .select('nombre, link')
+        .select('id, nombre, link')
         .eq('id_outfit', outfitId)
       
       if (error) throw error
       
-      // Use setValue to directly set the prendas array instead of manipulating fields
       if (prendas && prendas.length > 0) {
-        setValue('prendas', prendas.map(prenda => ({ 
-          nombre: prenda.nombre, 
-          link: prenda.link 
+        // Get images for each prenda
+        const prendasWithImageData = await Promise.all(
+          prendas.map(async (prenda) => {
+            let imagenExistente = undefined
+            
+            try {
+              const { data: files } = await supabase.storage
+                .from('Outfits')
+                .list(`uploads/${outfitId}/prendas/${prenda.id}`)
+                
+              if (files && files.length > 0) {
+                const { data: urlData } = supabase.storage
+                  .from('Outfits')
+                  .getPublicUrl(`uploads/${outfitId}/prendas/${prenda.id}/${files[0].name}`)
+                imagenExistente = urlData.publicUrl
+              }
+            } catch (error) {
+              console.warn(`Error loading image for prenda ${prenda.id}:`, error)
+            }
+            
+            return {
+              nombre: prenda.nombre,
+              link: prenda.link,
+              imagenExistente,
+              imagenPreview: imagenExistente
+            }
+          })
+        )
+        
+        setValue('prendas', prendasWithImageData.map(p => ({ 
+          nombre: p.nombre, 
+          link: p.link 
         })))
+        setPrendasWithImages(prendasWithImageData)
       } else {
-        // Set default empty prenda if no prendas found
         setValue('prendas', [{ nombre: '', link: '' }])
+        setPrendasWithImages([{ nombre: '', link: '' }])
       }
     } catch (error) {
       console.error('Error fetching prendas:', error)
-      // Set default empty prenda on error
       setValue('prendas', [{ nombre: '', link: '' }])
+      setPrendasWithImages([{ nombre: '', link: '' }])
     }
   }, [setValue])
 
   useEffect(() => {
     if (initialData && isEditing) {
-      // Map occasions to IDs if available
       const occasionIds = initialData.ocasiones ? 
         occasions.filter(occ => initialData.ocasiones!.includes(occ.ocasion)).map(occ => occ.id) : []
       
-      // Set selected occasions
       setSelectedOccasions(occasionIds)
       
       reset({
@@ -120,25 +163,34 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
         descripcion: initialData.descripcion || '',
         id_estilo: initialData.id_estilo || 0,
         ocasiones: occasionIds,
-        prendas: [], // Will be populated by fetchPrendasForOutfit
+        prendas: [],
         advisor_id: initialData.advisor_id || undefined
       })
       
-      // Set image preview if exists
       if (initialData.imagen) {
         setImagePreview(initialData.imagen)
       }
       
-      // Fetch prendas for this outfit
       if (outfitId) {
         fetchPrendasForOutfit(outfitId)
       }
     }
-  }, [initialData, isEditing, occasions, outfitId, fetchPrendasForOutfit])
+  }, [initialData, isEditing, occasions, outfitId, fetchPrendasForOutfit, reset])
+
+  // Sync prendasWithImages when fields change
+  useEffect(() => {
+    if (watchedPrendas && watchedPrendas.length !== prendasWithImages.length) {
+      const newPrendasWithImages = watchedPrendas.map((prenda, index) => ({
+        ...prendasWithImages[index],
+        nombre: prenda.nombre || '',
+        link: prenda.link || ''
+      }))
+      setPrendasWithImages(newPrendasWithImages)
+    }
+  }, [watchedPrendas, prendasWithImages])
 
   const handleImageChange = (file: File | null) => {
     if (file) {
-      // Clear existing image first
       setImagePreview(null)
       setValue('imagen', file)
       const reader = new FileReader()
@@ -152,14 +204,31 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
     }
   }
 
-  const handleReplaceImage = () => {
-    // Clear current image to force new selection
-    setImagePreview(null)
-    setValue('imagen', undefined)
-    // Trigger file input
-    document.getElementById('main-image-upload')?.click()
+  const handlePrendaImageChange = (index: number, file: File | null) => {
+    const newPrendasWithImages = [...prendasWithImages]
+    
+    if (file) {
+      newPrendasWithImages[index] = {
+        ...newPrendasWithImages[index],
+        imagen: file,
+        imagenPreview: URL.createObjectURL(file)
+      }
+    } else {
+      newPrendasWithImages[index] = {
+        ...newPrendasWithImages[index],
+        imagen: undefined,
+        imagenPreview: undefined
+      }
+    }
+    
+    setPrendasWithImages(newPrendasWithImages)
   }
 
+  const handleReplaceImage = () => {
+    setImagePreview(null)
+    setValue('imagen', undefined)
+    document.getElementById('main-image-upload')?.click()
+  }
 
   const handleOccasionToggle = (occasionId: number) => {
     const newOccasions = selectedOccasions.includes(occasionId)
@@ -170,21 +239,66 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
     setValue('ocasiones', newOccasions)
   }
 
+  const addPrenda = () => {
+    append({ nombre: '', link: '' })
+    setPrendasWithImages([...prendasWithImages, { nombre: '', link: '' }])
+  }
+
+  const removePrenda = (index: number) => {
+    // Clean up preview URL if exists
+    if (prendasWithImages[index]?.imagenPreview && 
+        prendasWithImages[index].imagenPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(prendasWithImages[index].imagenPreview!)
+    }
+    
+    remove(index)
+    const newPrendasWithImages = prendasWithImages.filter((_, i) => i !== index)
+    setPrendasWithImages(newPrendasWithImages)
+  }
+
   const onSubmit = async (data: OutfitFormData) => {
     try {
+      // Add prenda images to form data
+      const formDataWithImages = {
+        ...data,
+        prendas: data.prendas.map((prenda, index) => ({
+          ...prenda,
+          imagen: prendasWithImages[index]?.imagen
+        }))
+      }
+
       if (isEditing && outfitId) {
-        await dispatch(updateOutfit({ id: outfitId, outfitData: data })).unwrap()
+        await dispatch(updateOutfit({ id: outfitId, outfitData: formDataWithImages })).unwrap()
         toast.success('Outfit actualizado exitosamente')
       } else {
-        await dispatch(createOutfit(data)).unwrap()
+        await dispatch(createOutfit(formDataWithImages)).unwrap()
         toast.success('Outfit creado exitosamente')
       }
+      
+      // Clean up preview URLs
+      prendasWithImages.forEach(prenda => {
+        if (prenda.imagenPreview && prenda.imagenPreview.startsWith('blob:')) {
+          URL.revokeObjectURL(prenda.imagenPreview)
+        }
+      })
+      
       onSuccess?.()
     } catch (error) {
       toast.error(isEditing ? 'Error al actualizar el outfit' : 'Error al crear el outfit')
       console.error('Error submitting outfit:', error)
     }
   }
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      prendasWithImages.forEach(prenda => {
+        if (prenda.imagenPreview && prenda.imagenPreview.startsWith('blob:')) {
+          URL.revokeObjectURL(prenda.imagenPreview)
+        }
+      })
+    }
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -330,14 +444,12 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
             <CardTitle>Imagen Principal del Outfit</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Hidden file input that persists regardless of preview state */}
             <input
               type="file"
               accept="image/*"
               onChange={(e) => {
                 const file = e.target.files?.[0]
                 if (file) handleImageChange(file)
-                // Clear the input so same file can be selected again
                 e.target.value = ''
               }}
               className="hidden"
@@ -345,7 +457,6 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
             />
             
             {!imagePreview ? (
-              /* Image Upload */
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Subir una imagen para el outfit
@@ -366,7 +477,6 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
                 </div>
               </div>
             ) : (
-              /* Image Preview with Replace Option */
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Imagen del outfit seleccionada
@@ -409,9 +519,6 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
                       Eliminar
                     </Button>
                   </div>
-                  <p className="text-xs text-gray-500">
-                    Solo puedes tener una imagen por outfit. Para cambiarla, usa el botón &quot;Cambiar imagen&quot;.
-                  </p>
                 </div>
               </div>
             )}
@@ -427,7 +534,7 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => append({ nombre: '', link: '' })}
+                onClick={addPrenda}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Agregar Prenda
@@ -444,7 +551,7 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
                       type="button"
                       variant="destructive"
                       size="sm"
-                      onClick={() => remove(index)}
+                      onClick={() => removePrenda(index)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -485,6 +592,71 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
                       </p>
                     )}
                   </div>
+                </div>
+
+                {/* Prenda Image */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Imagen de la Prenda (Opcional)
+                  </label>
+                  
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      handlePrendaImageChange(index, file || null)
+                      e.target.value = ''
+                    }}
+                    className="hidden"
+                    id={`prenda-image-upload-${index}`}
+                  />
+                  
+                  {!prendasWithImages[index]?.imagenPreview ? (
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                      <label htmlFor={`prenda-image-upload-${index}`} className="cursor-pointer">
+                        <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-600">
+                          Haz clic para agregar imagen
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          PNG, JPG hasta 6MB
+                        </p>
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="relative inline-block">
+                        <Image
+                          src={prendasWithImages[index].imagenPreview!}
+                          alt={`Preview prenda ${index + 1}`}
+                          width={96}
+                          height={96}
+                          className="w-24 h-24 object-cover rounded-lg border"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handlePrendaImageChange(index, null)}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                          title="Eliminar imagen"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => document.getElementById(`prenda-image-upload-${index}`)?.click()}
+                          className="flex items-center gap-1"
+                        >
+                          <Camera className="h-3 w-3" />
+                          Cambiar
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

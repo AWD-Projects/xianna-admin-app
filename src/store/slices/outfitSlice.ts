@@ -224,7 +224,7 @@ export const createOutfit = createAsyncThunk(
 
     if (error) throw error
 
-    // Upload image if provided
+    // Upload main outfit image if provided
     if (outfitData.imagen) {
       const fileName = `${Date.now()}_${outfitData.imagen.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
       await supabase.storage
@@ -244,7 +244,7 @@ export const createOutfit = createAsyncThunk(
         .insert(occasionInserts)
     }
 
-    // Create prendas
+    // Create prendas and upload their images
     if (outfitData.prendas.length > 0) {
       const prendaInserts = outfitData.prendas.map(prenda => ({
         nombre: prenda.nombre,
@@ -252,9 +252,25 @@ export const createOutfit = createAsyncThunk(
         id_outfit: data.id
       }))
       
-      await supabase
+      const { data: insertedPrendas } = await supabase
         .from('prendas')
         .insert(prendaInserts)
+        .select('id')
+
+      // Upload prenda images if provided
+      if (insertedPrendas) {
+        for (let i = 0; i < outfitData.prendas.length; i++) {
+          const prenda = outfitData.prendas[i]
+          const prendaId = insertedPrendas[i].id
+          
+          if (prenda.imagen) {
+            const fileName = `${Date.now()}_${prenda.imagen.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
+            await supabase.storage
+              .from('Outfits')
+              .upload(`uploads/${data.id}/prendas/${prendaId}/${fileName}`, prenda.imagen)
+          }
+        }
+      }
     }
 
     return data
@@ -286,7 +302,7 @@ export const updateOutfit = createAsyncThunk(
 
     if (error) throw error
 
-    // Upload new image if provided
+    // Upload new main image if provided
     if (outfitData.imagen) {
       // Delete existing images first
       const { data: existingFiles } = await supabase.storage
@@ -330,6 +346,28 @@ export const updateOutfit = createAsyncThunk(
 
     // Update prendas if provided
     if (outfitData.prendas) {
+      // Get existing prendas to delete their images
+      const { data: existingPrendas } = await supabase
+        .from('prendas')
+        .select('id')
+        .eq('id_outfit', id)
+
+      // Delete existing prenda images
+      if (existingPrendas) {
+        for (const prenda of existingPrendas) {
+          const { data: prendaFiles } = await supabase.storage
+            .from('Outfits')
+            .list(`uploads/${id}/prendas/${prenda.id}`)
+          
+          if (prendaFiles && prendaFiles.length > 0) {
+            const filePaths = prendaFiles.map(file => `uploads/${id}/prendas/${prenda.id}/${file.name}`)
+            await supabase.storage
+              .from('Outfits')
+              .remove(filePaths)
+          }
+        }
+      }
+
       // Delete existing prendas
       await supabase
         .from('prendas')
@@ -344,9 +382,25 @@ export const updateOutfit = createAsyncThunk(
           id_outfit: id
         }))
         
-        await supabase
+        const { data: insertedPrendas } = await supabase
           .from('prendas')
           .insert(prendaInserts)
+          .select('id')
+
+        // Upload new prenda images if provided
+        if (insertedPrendas) {
+          for (let i = 0; i < outfitData.prendas.length; i++) {
+            const prenda = outfitData.prendas[i]
+            const prendaId = insertedPrendas[i].id
+            
+            if (prenda.imagen) {
+              const fileName = `${Date.now()}_${prenda.imagen.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
+              await supabase.storage
+                .from('Outfits')
+                .upload(`uploads/${id}/prendas/${prendaId}/${fileName}`, prenda.imagen)
+            }
+          }
+        }
       }
     }
 
@@ -359,7 +413,29 @@ export const deleteOutfit = createAsyncThunk(
   async (id: number) => {
     const supabase = createClient()
     
-    // Delete outfit images from storage
+    // Get prendas to delete their images
+    const { data: prendas } = await supabase
+      .from('prendas')
+      .select('id')
+      .eq('id_outfit', id)
+
+    // Delete prenda images
+    if (prendas) {
+      for (const prenda of prendas) {
+        const { data: prendaFiles } = await supabase.storage
+          .from('Outfits')
+          .list(`uploads/${id}/prendas/${prenda.id}`)
+        
+        if (prendaFiles && prendaFiles.length > 0) {
+          const filePaths = prendaFiles.map(file => `uploads/${id}/prendas/${prenda.id}/${file.name}`)
+          await supabase.storage
+            .from('Outfits')
+            .remove(filePaths)
+        }
+      }
+    }
+    
+    // Delete outfit main images from storage
     const { data: files } = await supabase.storage
       .from('Outfits')
       .list(`uploads/${id}/imagen_principal`)

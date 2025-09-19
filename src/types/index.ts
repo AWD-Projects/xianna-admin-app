@@ -118,8 +118,26 @@ export interface Prenda {
   id: number
   nombre: string
   link: string
-  imagen?: string
   id_outfit: number
+  imagen?: string // URL de la imagen si existe
+}
+
+// Tipo para prenda en el formulario
+export interface PrendaFormData {
+  nombre: string
+  link: string
+  imagen?: File // Archivo de imagen para subir
+}
+
+// Actualizar OutfitFormData para incluir imágenes en prendas
+export interface OutfitFormData {
+  nombre: string
+  descripcion: string
+  id_estilo: number
+  ocasiones: number[]
+  imagen?: File
+  prendas: PrendaFormData[]
+  advisor_id?: number
 }
 
 export interface Style {
