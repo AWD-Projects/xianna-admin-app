@@ -384,14 +384,6 @@ export function BlogForm({ onSuccess, onCancel, blogId, initialData }: BlogFormP
                     >
                       <X className="h-3 w-3" />
                     </button>
-                    {/* Indicator for existing vs new images */}
-                    <div className="absolute bottom-1 left-1">
-                      <span className={`text-xs px-1 py-0.5 rounded text-white ${
-                        image.isExisting ? 'bg-blue-500' : 'bg-green-500'
-                      }`}>
-                        {image.isExisting ? 'Existente' : 'Nueva'}
-                      </span>
-                    </div>
                   </div>
                 ))}
               </div>
