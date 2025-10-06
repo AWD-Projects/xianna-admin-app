@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { StatCardSkeleton, ListItemSkeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
-import { fetchQuestions, deleteQuestion } from '@/store/slices/questionnaireSlice'
+import { fetchQuestions, deleteQuestion, fetchStyles } from '@/store/slices/questionnaireSlice'
 import { QuestionForm } from './QuestionForm'
 import type { AppDispatch, RootState } from '@/store'
 import type { Question } from '@/types'
@@ -17,7 +17,7 @@ import * as XLSX from 'xlsx'
 
 export function QuestionnaireManagement() {
   const dispatch = useDispatch<AppDispatch>()
-  const { questions, loading, error } = useSelector(
+  const { questions, styles, loading, error } = useSelector(
     (state: RootState) => state.questionnaire
   )
 
@@ -28,7 +28,14 @@ export function QuestionnaireManagement() {
 
   useEffect(() => {
     dispatch(fetchQuestions())
+    dispatch(fetchStyles())
   }, [dispatch])
+
+  // Helper function to get style name by id
+  const getStyleName = (id_estilo: number): string => {
+    const style = styles.find(s => s.id === id_estilo)
+    return style ? style.tipo : `Estilo ${id_estilo}`
+  }
 
   const handleCreateSuccess = () => {
     setShowCreateForm(false)
@@ -260,7 +267,7 @@ export function QuestionnaireManagement() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {question.answers.map((answer) => (
-                  <div 
+                  <div
                     key={answer.id}
                     className="p-3 border rounded-lg bg-gray-50"
                   >
@@ -269,7 +276,7 @@ export function QuestionnaireManagement() {
                         {answer.identificador.toUpperCase()}
                       </Badge>
                       <Badge variant="outline" className="text-xs">
-                        Estilo {answer.id_estilo}
+                        {getStyleName(answer.id_estilo)}
                       </Badge>
                     </div>
                     <p className="text-sm">{answer.respuesta}</p>

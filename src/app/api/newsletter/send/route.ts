@@ -1,36 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sgMail from '@sendgrid/mail'
+import { createClient } from '@/lib/supabase/server'
 
 // Initialize SendGrid with your API key
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || ''
-sgMail.setApiKey(SENDGRID_API_KEY) 
-
-// Helper function to get style name
-const getStyleName = (tipoEstilo: number) => {
-  const styleMap: { [key: number]: string } = {
-    1: 'Casual', 2: 'Elegante', 3: 'Deportivo', 4: 'Boho', 
-    5: 'Minimalista', 6: 'Rockero', 7: 'Vintage'
-  }
-  return styleMap[tipoEstilo] || `Estilo ${tipoEstilo}`
-}
+sgMail.setApiKey(SENDGRID_API_KEY)
 
 // Helper function to personalize template
-const personalizeTemplate = (templateHtml: string, templateSubject: string, user: any) => {
+const personalizeTemplate = (templateHtml: string, templateSubject: string, user: any, styleMap: { [key: number]: string }) => {
   let personalizedHtml = templateHtml
   let personalizedSubject = templateSubject
-  
+
+  // Get style name from the styleMap or fallback to generic text
+  const styleName = styleMap[user.tipo_estilo] || `Estilo ${user.tipo_estilo}`
+
   // Replace placeholders with user data
   personalizedHtml = personalizedHtml.replace(/\{\{nombre\}\}/g, user.nombre || 'Usuario')
-  personalizedHtml = personalizedHtml.replace(/\{\{tipo_estilo\}\}/g, getStyleName(user.tipo_estilo))
+  personalizedHtml = personalizedHtml.replace(/\{\{tipo_estilo\}\}/g, styleName)
   personalizedHtml = personalizedHtml.replace(/\{\{tipo_cuerpo\}\}/g, user.tipo_cuerpo || 'tu tipo de cuerpo')
   personalizedHtml = personalizedHtml.replace(/\{\{estado\}\}/g, user.estado || 'tu ubicación')
   personalizedHtml = personalizedHtml.replace(/\{\{genero\}\}/g, user.genero || '')
   personalizedHtml = personalizedHtml.replace(/\{\{edad\}\}/g, user.edad?.toString() || '')
   personalizedHtml = personalizedHtml.replace(/\{\{ocupacion\}\}/g, user.ocupacion || 'tu ocupación')
-  
+
   personalizedSubject = personalizedSubject.replace(/\{\{nombre\}\}/g, user.nombre || 'Usuario')
-  personalizedSubject = personalizedSubject.replace(/\{\{tipo_estilo\}\}/g, getStyleName(user.tipo_estilo))
-  
+  personalizedSubject = personalizedSubject.replace(/\{\{tipo_estilo\}\}/g, styleName)
+
   return { personalizedHtml, personalizedSubject }
 }
 
@@ -52,12 +47,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Fetch all styles from database to build a map
+    const supabase = await createClient()
+    const { data: stylesData, error: stylesError } = await supabase
+      .from('estilos')
+      .select('id, tipo')
+
+    if (stylesError) {
+      console.error('Error fetching styles:', stylesError)
+    }
+
+    // Create a map of style id to style name
+    const styleMap: { [key: number]: string } = {}
+    if (stylesData) {
+      stylesData.forEach((style: any) => {
+        styleMap[style.id] = style.tipo
+      })
+    }
+
     // Prepare personalized emails for each user
     const personalizedEmails = users.map(user => {
       const { personalizedHtml, personalizedSubject } = personalizeTemplate(
-        template.htmlContent, 
-        template.subject, 
-        user
+        template.htmlContent,
+        template.subject,
+        user,
+        styleMap
       )
       
       return {
