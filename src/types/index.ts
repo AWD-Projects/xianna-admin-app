@@ -94,6 +94,7 @@ export interface Outfit {
   descripcion: string
   id_estilo: number
   estilo: string
+  estiloStatus?: 'activo' | 'inactivo'
   imagen: string
   precio?: number
   ocasiones: string[]
@@ -144,6 +145,7 @@ export interface Style {
   id: number
   tipo: string
   descripcion: string
+  status: 'activo' | 'inactivo'
 }
 
 export interface Occasion {

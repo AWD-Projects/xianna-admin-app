@@ -58,6 +58,7 @@ export const fetchStyles = createAsyncThunk(
     const { data, error } = await supabase
       .from('estilos')
       .select('*')
+      .eq('status', 'activo')
       .order('tipo')
 
     if (error) throw error

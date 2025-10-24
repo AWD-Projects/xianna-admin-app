@@ -18,7 +18,7 @@ export const fetchStyles = createAsyncThunk(
   'style/fetchStyles',
   async () => {
     const supabase = createClient()
-    
+
     const { data, error } = await supabase
       .from('estilos')
       .select('*')
@@ -33,10 +33,10 @@ export const createStyle = createAsyncThunk(
   'style/createStyle',
   async (styleData: StyleFormData) => {
     const supabase = createClient()
-    
+
     const { data, error } = await supabase
       .from('estilos')
-      .insert(styleData)
+      .insert({ ...styleData, status: 'activo' })
       .select()
       .single()
 
@@ -62,41 +62,35 @@ export const updateStyle = createAsyncThunk(
   }
 )
 
+export const toggleStyleStatus = createAsyncThunk(
+  'style/toggleStyleStatus',
+  async ({ id, currentStatus }: { id: number; currentStatus: 'activo' | 'inactivo' }) => {
+    const supabase = createClient()
+
+    const newStatus = currentStatus === 'activo' ? 'inactivo' : 'activo'
+
+    const { data, error } = await supabase
+      .from('estilos')
+      .update({ status: newStatus })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  }
+)
+
+// Keep deleteStyle for backward compatibility (soft delete)
 export const deleteStyle = createAsyncThunk(
   'style/deleteStyle',
   async (id: number) => {
     const supabase = createClient()
-    
-    // First, check if this style is being used by any outfits
-    const { data: usedByOutfits, error: checkError } = await supabase
-      .from('outfits')
-      .select('id')
-      .eq('id_estilo', id)
-      .limit(1)
 
-    if (checkError) throw checkError
-
-    if (usedByOutfits && usedByOutfits.length > 0) {
-      throw new Error('No se puede eliminar este estilo porque está siendo usado por uno o más outfits')
-    }
-
-    // Also check if it's being used by questionnaire answers
-    const { data: usedByAnswers, error: answersError } = await supabase
-      .from('respuestas')
-      .select('id')
-      .eq('id_estilo', id)
-      .limit(1)
-
-    if (answersError) throw answersError
-
-    if (usedByAnswers && usedByAnswers.length > 0) {
-      throw new Error('No se puede eliminar este estilo porque está siendo usado por respuestas del cuestionario')
-    }
-
-    // If not used, proceed with deletion
+    // Soft delete: update status to 'inactivo' instead of deleting
     const { error } = await supabase
       .from('estilos')
-      .delete()
+      .update({ status: 'inactivo' })
       .eq('id', id)
 
     if (error) throw error
@@ -155,6 +149,22 @@ const styleSlice = createSlice({
       .addCase(updateStyle.rejected, (state, action) => {
         state.loading = false
         state.error = action.error.message || 'Error al actualizar estilo'
+      })
+      // Toggle style status
+      .addCase(toggleStyleStatus.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(toggleStyleStatus.fulfilled, (state, action) => {
+        state.loading = false
+        const index = state.styles.findIndex(style => style.id === action.payload.id)
+        if (index !== -1) {
+          state.styles[index] = action.payload
+        }
+      })
+      .addCase(toggleStyleStatus.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.error.message || 'Error al cambiar el estado del estilo'
       })
       // Delete style
       .addCase(deleteStyle.pending, (state) => {

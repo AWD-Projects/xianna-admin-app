@@ -54,7 +54,7 @@ export const fetchOutfits = createAsyncThunk(
       .from('outfits')
       .select(`
         *,
-        estilos!inner(tipo),
+        estilos!inner(tipo, status),
         advisors(id, nombre, especialidad)
       `, { count: 'exact' })
 
@@ -140,6 +140,7 @@ export const fetchOutfits = createAsyncThunk(
         return {
           ...outfit,
           estilo: outfit.estilos.tipo,
+          estiloStatus: outfit.estilos.status,
           imagen: imageUrl,
           ocasiones: ocasiones,
           favoritos: favoritesCount || 0,
@@ -178,6 +179,7 @@ export const fetchStyles = createAsyncThunk(
     const { data, error } = await supabase
       .from('estilos')
       .select('*')
+      .eq('status', 'activo')
       .order('tipo')
 
     if (error) throw error

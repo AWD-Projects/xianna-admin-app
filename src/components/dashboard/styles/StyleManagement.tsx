@@ -7,11 +7,11 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
-import { fetchStyles, createStyle, updateStyle, deleteStyle, clearError } from '@/store/slices/styleSlice'
+import { Switch } from '@/components/ui/switch'
+import { fetchStyles, createStyle, updateStyle, toggleStyleStatus, clearError } from '@/store/slices/styleSlice'
 import type { AppDispatch, RootState } from '@/store'
 import type { Style, StyleFormData } from '@/types'
-import { Plus, Edit, Trash2, Save, X } from 'lucide-react'
+import { Plus, Edit, Save, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 const styleSchema = z.object({
@@ -25,7 +25,6 @@ export function StyleManagement() {
   
   const [showForm, setShowForm] = useState(false)
   const [editingStyle, setEditingStyle] = useState<Style | null>(null)
-  const [deletingStyle, setDeletingStyle] = useState<Style | null>(null)
 
   const {
     register,
@@ -96,15 +95,13 @@ export function StyleManagement() {
     }
   }
 
-  const handleDelete = async () => {
-    if (!deletingStyle) return
-    
+  const handleToggleStatus = async (style: Style) => {
     try {
-      await dispatch(deleteStyle(deletingStyle.id)).unwrap()
-      toast.success('Estilo eliminado exitosamente')
-      setDeletingStyle(null)
+      await dispatch(toggleStyleStatus({ id: style.id, currentStatus: style.status })).unwrap()
+      const newStatus = style.status === 'activo' ? 'inactivo' : 'activo'
+      toast.success(`Estilo ${newStatus === 'activo' ? 'activado' : 'desactivado'} exitosamente`)
     } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar el estilo')
+      toast.error(error.message || 'Error al cambiar el estado del estilo')
     }
   }
 
@@ -206,26 +203,45 @@ export function StyleManagement() {
               ) : (
                 <div className="space-y-2">
                   {styles.map((style) => (
-                    <div key={style.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                    <div
+                      key={style.id}
+                      className={`flex items-center justify-between p-4 border rounded-lg transition-all ${
+                        style.status === 'activo'
+                          ? 'hover:bg-gray-50 border-gray-200'
+                          : 'bg-gray-50 border-gray-300 opacity-60'
+                      }`}
+                    >
                       <div className="flex-1">
-                        <h3 className="font-medium text-gray-900">{style.tipo}</h3>
-                        <p className="text-sm text-gray-600">{style.descripcion}</p>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-medium text-gray-900">{style.tipo}</h3>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            style.status === 'activo'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-gray-200 text-gray-600'
+                          }`}>
+                            {style.status === 'activo' ? 'Activo' : 'Inactivo'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">{style.descripcion}</p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex items-center gap-3">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleEdit(style)}
+                          disabled={style.status === 'inactivo'}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => setDeletingStyle(style)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">
+                            {style.status === 'activo' ? 'Activo' : 'Inactivo'}
+                          </span>
+                          <Switch
+                            checked={style.status === 'activo'}
+                            onCheckedChange={() => handleToggleStatus(style)}
+                          />
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -235,18 +251,6 @@ export function StyleManagement() {
           </Card>
         </div>
       </div>
-
-      {/* Delete Confirmation */}
-      <ConfirmationDialog
-        isOpen={!!deletingStyle}
-        onClose={() => setDeletingStyle(null)}
-        onConfirm={handleDelete}
-        title="Eliminar Estilo"
-        message={`¿Estás seguro de que quieres eliminar el estilo "${deletingStyle?.tipo}"? Esta acción no se puede deshacer.`}
-        confirmText="Eliminar"
-        cancelText="Cancelar"
-        variant="danger"
-      />
     </div>
   )
 }

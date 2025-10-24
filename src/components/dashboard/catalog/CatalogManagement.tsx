@@ -422,8 +422,11 @@ export function CatalogManagement() {
                   </div>
                 </div>
               )}
-              <div className="absolute top-2 right-2">
+              <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
                 <Badge variant="secondary">{outfit.estilo}</Badge>
+                {outfit.estiloStatus === 'inactivo' && (
+                  <Badge variant="destructive" className="text-xs">Estilo Inactivo</Badge>
+                )}
               </div>
               <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-white/90 rounded-full px-2 py-1">
                 <Bookmark className="h-3 w-3 text-red-500" />
