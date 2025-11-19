@@ -666,21 +666,30 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
                     )}
 
                     {/* Show full URL preview with UTM if advisor is selected */}
-                    {watch('advisor_id') && (watch('advisor_id') ?? 0) > 0 && watch(`prendas.${index}.link`) && (
-                      <div className="mt-2">
-                        <p className="text-xs font-medium text-gray-700 mb-1">
-                          URL completa que se guardará:
-                        </p>
-                        <div className="bg-blue-50 border border-blue-200 rounded-md px-3 py-2 break-all">
-                          <code className="text-xs text-blue-800">
-                            {generateURLWithUTM(watch(`prendas.${index}.link`) || '', watch('advisor_id'))}
-                          </code>
+                    {(() => {
+                      const advisorId = watch('advisor_id')
+                      const prendaLink = watch(`prendas.${index}.link`)
+                      const hasValidAdvisor = advisorId != null && advisorId > 0
+                      const hasLink = prendaLink && prendaLink.trim() !== ''
+
+                      if (!hasValidAdvisor || !hasLink) return null
+
+                      return (
+                        <div className="mt-2">
+                          <p className="text-xs font-medium text-gray-700 mb-1">
+                            URL completa que se guardará:
+                          </p>
+                          <div className="bg-blue-50 border border-blue-200 rounded-md px-3 py-2 break-all">
+                            <code className="text-xs text-blue-800">
+                              {generateURLWithUTM(prendaLink, advisorId)}
+                            </code>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            El tag UTM se agregará automáticamente al guardar
+                          </p>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          El tag UTM se agregará automáticamente al guardar
-                        </p>
-                      </div>
-                    )}
+                      )
+                    })()}
                   </div>
                 </div>
 
