@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { useForm, Controller, useFieldArray } from 'react-hook-form'
+import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Image from 'next/image'
@@ -658,12 +658,27 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
                       type="url"
                       placeholder="https://tienda.com/prenda"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                      onChange={(e) => {
+                        // Remove spaces from the URL
+                        const sanitizedValue = e.target.value.replace(/\s+/g, '')
+                        setValue(`prendas.${index}.link`, sanitizedValue)
+                      }}
+                      onPaste={(e) => {
+                        // Sanitize pasted content
+                        e.preventDefault()
+                        const pastedText = e.clipboardData.getData('text')
+                        const sanitizedValue = pastedText.replace(/\s+/g, '')
+                        setValue(`prendas.${index}.link`, sanitizedValue)
+                      }}
                     />
                     {errors.prendas?.[index]?.link && (
                       <p className="text-red-500 text-sm mt-1">
                         {errors.prendas[index]?.link?.message}
                       </p>
                     )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Los espacios se eliminarán automáticamente
+                    </p>
 
                     {/* Show full URL preview with UTM if advisor is selected */}
                     {(() => {
