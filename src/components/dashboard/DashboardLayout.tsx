@@ -5,7 +5,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { useRouter } from 'next/navigation'
 import { DashboardSidebar } from './DashboardSidebar'
 import { DashboardHeader } from './DashboardHeader'
-import { SessionWatcher } from '@/components/auth/SessionWatcher'
+import { SessionManager } from '@/components/auth/SessionManager'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getCurrentUser } from '@/store/slices/authSlice'
 import type { RootState, AppDispatch } from '@/store'
@@ -109,8 +109,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Session Watcher */}
-      <SessionWatcher />
+      {/* Session synchronization */}
+      <SessionManager />
       
       {/* Sidebar */}
       <DashboardSidebar 

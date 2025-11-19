@@ -132,8 +132,9 @@ export default function CreateNewsletterPage() {
 
   // Calculate current email usage
   const totalEmailsSent = campaigns.reduce((total, campaign) => total + campaign.numero_usuarios_enviados, 0)
-  const emailLimit = 1000
-  const remainingEmails = emailLimit - totalEmailsSent
+  const parsedEmailLimit = Number(process.env.NEXT_PUBLIC_NEWSLETTER_EMAIL_LIMIT ?? '1000')
+  const emailLimit = Number.isFinite(parsedEmailLimit) && parsedEmailLimit > 0 ? parsedEmailLimit : 1000
+  const remainingEmails = Math.max(emailLimit - totalEmailsSent, 0)
   const selectedEmailsCount = selectedUsers.filter(user => user.selected).length
   const wouldExceedLimit = totalEmailsSent + selectedEmailsCount > emailLimit
   const isNearLimit = totalEmailsSent >= emailLimit * 0.8
@@ -229,7 +230,8 @@ export default function CreateNewsletterPage() {
       toast.success('Campaña creada y enviada exitosamente')
       router.push('/dashboard/newsletter')
     } catch (error) {
-      toast.error('Error al crear la campaña')
+      const message = error instanceof Error ? error.message : 'Error al crear la campaña'
+      toast.error(message)
       console.error(error)
     }
   }

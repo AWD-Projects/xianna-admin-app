@@ -91,7 +91,14 @@ export const sendNewsletterCampaign = createAsyncThunk(
     })
 
     if (!response.ok) {
-      throw new Error('Failed to send newsletter')
+      let errorMessage = 'Failed to send newsletter'
+      try {
+        const payload = await response.json()
+        errorMessage = payload?.message || payload?.details || payload?.error || errorMessage
+      } catch {
+        // ignore parse errors
+      }
+      throw new Error(errorMessage)
     }
 
     return response.json()

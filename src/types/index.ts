@@ -262,11 +262,6 @@ export interface OccasionFormData {
   ocasion: string
 }
 
-export interface PrendaFormData {
-  nombre: string
-  link: string
-}
-
 export interface QuestionFormData {
   pregunta: string
   answers: AnswerFormData[]

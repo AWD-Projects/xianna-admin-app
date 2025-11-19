@@ -48,109 +48,120 @@ const getFilePathFromUrl = (url: string, blogId: number): string | null => {
 // Async thunks
 export const fetchBlogs = createAsyncThunk(
   'blog/fetchBlogs',
-  async ({ 
-    page = 1, 
-    pageSize = 10, 
-    category = '', 
+  async ({
+    page = 1,
+    pageSize = 10,
+    category = '',
     search = '',
-    minRating = 0
-  }: { 
-    page?: number; 
-    pageSize?: number; 
-    category?: string; 
-    search?: string;
-    minRating?: number;
+    minRating = 0,
+  }: {
+    page?: number
+    pageSize?: number
+    category?: string
+    search?: string
+    minRating?: number
   }) => {
     const supabase = createClient()
-    
+
     let query = supabase
       .from('blogs')
-      .select(`
+      .select(
+        `
         id,
         titulo,
         descripcion,
         contenido,
         id_categoria,
         categoria_blog!inner(categoria)
-      `, { count: 'exact' })
+      `,
+        { count: 'exact' }
+      )
       .order('id', { ascending: false })
 
-    // Apply search filter
     if (search) {
-      query = query.or(`titulo.ilike.%${search}%,descripcion.ilike.%${search}%,contenido.ilike.%${search}%`)
+      query = query.or(
+        `titulo.ilike.%${search}%,descripcion.ilike.%${search}%,contenido.ilike.%${search}%`
+      )
     }
 
-    // Apply category filter
     if (category && category !== 'all' && category !== '') {
       query = query.eq('categoria_blog.categoria', category)
     }
 
-    const { data, error, count } = await query
-      .range((page - 1) * pageSize, page * pageSize - 1)
+    const { data, error, count } = await query.range(
+      (page - 1) * pageSize,
+      page * pageSize - 1
+    )
 
     if (error) throw error
 
-    // Get images and ratings for each blog
+    const blogIds = (data || []).map((blog: any) => blog.id)
+
+    // Fetch all ratings in a single query
+    const blogRatingsMap = new Map<
+      number,
+      { sum: number; count: number }
+    >()
+    if (blogIds.length > 0) {
+      const { data: ratingsData } = await supabase
+        .from('blogs_calificados')
+        .select('blog, calificacion')
+        .in('blog', blogIds)
+
+      ratingsData?.forEach((rating) => {
+        const entry = blogRatingsMap.get(rating.blog) || { sum: 0, count: 0 }
+        entry.sum += rating.calificacion
+        entry.count += 1
+        blogRatingsMap.set(rating.blog, entry)
+      })
+    }
+
     const blogsWithDetails = await Promise.all(
       (data || []).map(async (blog: any) => {
-        // Get blog image from storage
-        let imageUrl = '/images/placeholder.jpg'
-        
         const { data: files } = await supabase.storage
           .from('Blogs')
-          .list(`uploads/${blog.id}`, { limit: 1 })
-          
-        if (files && files.length > 0) {
-          const { data: urlData } = supabase.storage
-            .from('Blogs')
-            .getPublicUrl(`uploads/${blog.id}/${files[0].name}`)
-          imageUrl = urlData.publicUrl
-        }
-
-        // Get all images
-        const { data: allFiles } = await supabase.storage
-          .from('Blogs')
           .list(`uploads/${blog.id}`)
-          
-        const images = allFiles?.map(file => 
-          supabase.storage.from('Blogs').getPublicUrl(`uploads/${blog.id}/${file.name}`).data.publicUrl
-        ) || []
 
-        // Get ratings
-        const { data: ratingsData } = await supabase
-          .from('blogs_calificados')
-          .select('calificacion')
-          .eq('blog', blog.id)
+        const images =
+          files?.map(
+            (file) =>
+              supabase.storage.from('Blogs').getPublicUrl(`uploads/${blog.id}/${file.name}`).data
+                .publicUrl
+          ) || []
 
-        const ratings = ratingsData?.map(r => r.calificacion) || []
-        const averageRating = ratings.length > 0 
-          ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length 
-          : 0
+        const primaryImage = images[0] || '/images/placeholder.jpg'
+
+        const ratingEntry = blogRatingsMap.get(blog.id)
+        const rating =
+          ratingEntry && ratingEntry.count > 0
+            ? Math.round((ratingEntry.sum / ratingEntry.count) * 10) / 10
+            : 0
 
         return {
           ...blog,
-          categoria: blog.categoria_blog.categoria,
-          image: imageUrl,
+          categoria: blog.categoria_blog?.categoria || 'Sin categoría',
+          image: primaryImage,
           name: blog.titulo,
-          category: blog.categoria_blog.categoria,
-          rating: Math.round(averageRating * 10) / 10,
-          persons: ratings.length,
-          images: images
+          category: blog.categoria_blog?.categoria || 'Sin categoría',
+          rating,
+          persons: ratingEntry?.count || 0,
+          images,
         }
       })
     )
 
-    // Apply rating filter after data processing
     let filteredBlogs = blogsWithDetails
     if (minRating > 0) {
-      filteredBlogs = blogsWithDetails.filter(blog => blog.rating >= minRating)
+      filteredBlogs = blogsWithDetails.filter((blog) => blog.rating >= minRating)
     }
 
     return {
       blogs: filteredBlogs,
       totalBlogs: minRating > 0 ? filteredBlogs.length : count || 0,
-      totalPages: Math.ceil((minRating > 0 ? filteredBlogs.length : count || 0) / pageSize),
-      currentPage: page
+      totalPages: Math.ceil(
+        (minRating > 0 ? filteredBlogs.length : count || 0) / pageSize
+      ),
+      currentPage: page,
     }
   }
 )
@@ -196,7 +207,7 @@ export const fetchBlogById = createAsyncThunk(
 
     return {
       ...data,
-      categoria: data.categoria_blog.categoria,
+      categoria: data.categoria_blog?.categoria || 'Sin categoría',
       image: images[0] || '/images/placeholder.jpg',
       images: images
     }
@@ -416,6 +427,7 @@ const blogSlice = createSlice({
         state.loading = false
         state.blogs.unshift(action.payload as any)
         state.pagination.totalBlogs += 1
+        state.pagination.totalPages = Math.ceil(state.pagination.totalBlogs / state.pagination.pageSize)
       })
       .addCase(createBlog.rejected, (state, action) => {
         state.loading = false
@@ -449,6 +461,7 @@ const blogSlice = createSlice({
         state.loading = false
         state.blogs = state.blogs.filter(blog => blog.id !== action.payload)
         state.pagination.totalBlogs -= 1
+        state.pagination.totalPages = Math.ceil(state.pagination.totalBlogs / state.pagination.pageSize)
         if (state.currentBlog?.id === action.payload) {
           state.currentBlog = null
         }

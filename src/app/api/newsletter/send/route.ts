@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sgMail from '@sendgrid/mail'
+
 import { createClient } from '@/lib/supabase/server'
 
 // Initialize SendGrid with your API key
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || ''
 sgMail.setApiKey(SENDGRID_API_KEY)
+
+const EMAIL_LIMIT =
+  Number(process.env.NEWSLETTER_EMAIL_LIMIT ?? process.env.NEXT_PUBLIC_NEWSLETTER_EMAIL_LIMIT ?? '1000') ||
+  1000
 
 // Helper function to personalize template
 const personalizeTemplate = (templateHtml: string, templateSubject: string, user: any, styleMap: { [key: number]: string }) => {
@@ -47,8 +52,53 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const supabase = createClient()
+
+    // Enforce email limit
+    const { data: campaignTotals, error: campaignTotalsError } = await supabase
+      .from('newsletter_campaigns')
+      .select('id, numero_usuarios_enviados')
+
+    if (campaignTotalsError) {
+      console.error('Error fetching campaign totals:', campaignTotalsError)
+      return NextResponse.json(
+        { error: 'Failed to calculate email usage', message: 'No se pudo validar el límite de correos' },
+        { status: 500 }
+      )
+    }
+
+    const previousEmailsSent =
+      campaignTotals
+        ?.filter((campaign) => campaign.id !== campaignId)
+        .reduce((sum, campaign) => sum + (campaign.numero_usuarios_enviados ?? 0), 0) ?? 0
+
+    const remainingCapacity = EMAIL_LIMIT - previousEmailsSent
+
+    if (remainingCapacity <= 0) {
+      return NextResponse.json(
+        {
+          error: 'EMAIL_LIMIT_EXCEEDED',
+          message: 'Ya alcanzaste el límite mensual de envíos de correo.',
+          remaining: 0,
+          limit: EMAIL_LIMIT,
+        },
+        { status: 400 }
+      )
+    }
+
+    if (users.length > remainingCapacity) {
+      return NextResponse.json(
+        {
+          error: 'EMAIL_LIMIT_EXCEEDED',
+          message: `Solo puedes enviar ${remainingCapacity} correos adicionales este mes.`,
+          remaining: remainingCapacity,
+          limit: EMAIL_LIMIT,
+        },
+        { status: 400 }
+      )
+    }
+
     // Fetch all styles from database to build a map
-    const supabase = await createClient()
     const { data: stylesData, error: stylesError } = await supabase
       .from('estilos')
       .select('id, tipo')
@@ -100,17 +150,31 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Send all personalized emails
-    const responses = await Promise.all(
+    // Use Promise.allSettled to handle partial failures
+    const results = await Promise.allSettled(
       personalizedEmails.map(emailData => sgMail.send(emailData))
     )
 
-    console.log(`SendGrid responses: ${responses.length} emails sent`)
+    const successCount = results.filter(r => r.status === 'fulfilled').length
+    const failedCount = results.filter(r => r.status === 'rejected').length
+    const failedEmails = results
+      .map((r, index) => r.status === 'rejected' ? personalizedEmails[index].to : null)
+      .filter(Boolean)
+
+    // Log failed emails for debugging
+    if (failedCount > 0) {
+      console.error(`Failed to send ${failedCount} emails:`, failedEmails)
+    }
 
     return NextResponse.json({
-      success: true,
-      message: `Newsletter sent successfully to ${users.length} recipients`,
-      sentCount: users.length,
+      success: successCount > 0,
+      message: failedCount === 0
+        ? `Newsletter sent successfully to all ${successCount} recipients`
+        : `Newsletter sent to ${successCount} recipients. ${failedCount} failed.`,
+      sentCount: successCount,
+      failedCount,
+      totalAttempted: users.length,
+      failedEmails: failedCount > 0 ? failedEmails : undefined,
       campaignId
     })
 

@@ -42,7 +42,10 @@ export function DashboardSidebar({ open, onClose }: DashboardSidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 px-4 space-y-2">
         {navigation.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+          const isDashboardRoot = item.href === '/dashboard'
+          const isActive = isDashboardRoot
+            ? pathname === item.href
+            : pathname === item.href || pathname.startsWith(item.href + '/')
           return (
             <Link
               key={item.name}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useForm, Controller, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -52,12 +52,15 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
   const dispatch = useDispatch<AppDispatch>()
   const { loading, styles, occasions } = useSelector((state: RootState) => state.outfit)
   const { advisors } = useSelector((state: RootState) => state.advisor)
-  
+
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [selectedOccasions, setSelectedOccasions] = useState<number[]>([])
   const [prendasWithImages, setPrendasWithImages] = useState<PrendaWithImage[]>([
     { nombre: '', link: '' }
   ])
+
+  // Ref to track if component is mounted (prevents FileReader memory leak)
+  const isMountedRef = useRef(true)
 
   const isEditing = !!outfitId
 
@@ -95,6 +98,13 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
     dispatch(fetchAdvisors({ page: 1, pageSize: 100, activeFilter: 'true' }))
   }, [dispatch])
 
+  // Cleanup effect to prevent FileReader memory leaks
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
   const fetchPrendasForOutfit = useCallback(async (outfitId: number) => {
     try {
       const supabase = createClient()
@@ -102,20 +112,20 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
         .from('prendas')
         .select('id, nombre, link')
         .eq('id_outfit', outfitId)
-      
+
       if (error) throw error
-      
+
       if (prendas && prendas.length > 0) {
         // Get images for each prenda
         const prendasWithImageData = await Promise.all(
           prendas.map(async (prenda) => {
             let imagenExistente = undefined
-            
+
             try {
               const { data: files } = await supabase.storage
                 .from('Outfits')
                 .list(`uploads/${outfitId}/prendas/${prenda.id}`)
-                
+
               if (files && files.length > 0) {
                 const { data: urlData } = supabase.storage
                   .from('Outfits')
@@ -125,19 +135,22 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
             } catch (error) {
               console.warn(`Error loading image for prenda ${prenda.id}:`, error)
             }
-            
+
+            // Strip UTM tags from link for editing (they will be re-added on save)
+            const linkWithoutUTM = prenda.link.replace(/[?&]utm_campaign=xianna_[^&]*/, '')
+
             return {
               nombre: prenda.nombre,
-              link: prenda.link,
+              link: linkWithoutUTM,
               imagenExistente,
               imagenPreview: imagenExistente
             }
           })
         )
-        
-        setValue('prendas', prendasWithImageData.map(p => ({ 
-          nombre: p.nombre, 
-          link: p.link 
+
+        setValue('prendas', prendasWithImageData.map(p => ({
+          nombre: p.nombre,
+          link: p.link
         })))
         setPrendasWithImages(prendasWithImageData)
       } else {
@@ -181,7 +194,7 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
   useEffect(() => {
     if (watchedPrendas && watchedPrendas.length !== prendasWithImages.length) {
       const newPrendasWithImages = watchedPrendas.map((prenda, index) => ({
-        ...prendasWithImages[index],
+        ...(prendasWithImages[index] || { nombre: '', link: '' }),
         nombre: prenda.nombre || '',
         link: prenda.link || ''
       }))
@@ -193,10 +206,24 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
     if (file) {
       setImagePreview(null)
       setValue('imagen', file)
+
       const reader = new FileReader()
+
       reader.onloadend = () => {
-        setImagePreview(reader.result as string)
+        // Only update state if component is still mounted
+        if (isMountedRef.current) {
+          setImagePreview(reader.result as string)
+        }
       }
+
+      reader.onerror = () => {
+        // Only update state if component is still mounted
+        if (isMountedRef.current) {
+          console.error('Error reading file:', reader.error)
+          setImagePreview(null)
+        }
+      }
+
       reader.readAsDataURL(file)
     } else {
       setValue('imagen', undefined)
@@ -256,15 +283,61 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
     setPrendasWithImages(newPrendasWithImages)
   }
 
+  // Helper function to sanitize advisor name for UTM parameter
+  const sanitizeAdvisorNameForUTM = (name: string): string => {
+    return name
+      .normalize('NFD') // Decompose accented characters
+      .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_') // Replace non-alphanumeric with underscore
+      .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+      .replace(/_+/g, '_') // Replace multiple underscores with single
+  }
+
+  // Helper function to generate full URL with UTM
+  const generateURLWithUTM = (baseURL: string, advisorId?: number): string => {
+    const selectedAdvisor = advisorId && advisorId > 0
+      ? advisors.find(advisor => advisor.id === advisorId)
+      : null
+
+    if (!selectedAdvisor || !baseURL) return baseURL
+
+    const advisorName = sanitizeAdvisorNameForUTM(selectedAdvisor.nombre)
+    const utmTag = `utm_campaign=xianna_${advisorName}_${selectedAdvisor.id}`
+    const separator = baseURL.includes('?') ? '&' : '?'
+
+    return `${baseURL}${separator}${utmTag}`
+  }
+
   const onSubmit = async (data: OutfitFormData) => {
     try {
-      // Add prenda images to form data
+      // Get selected advisor info for UTM tags
+      const selectedAdvisor = data.advisor_id && data.advisor_id > 0
+        ? advisors.find(advisor => advisor.id === data.advisor_id)
+        : null
+
+      // Add prenda images to form data and append UTM tags to links
       const formDataWithImages = {
         ...data,
-        prendas: data.prendas.map((prenda, index) => ({
-          ...prenda,
-          imagen: prendasWithImages[index]?.imagen
-        }))
+        prendas: data.prendas.map((prenda, index) => {
+          let prendaLink = prenda.link
+
+          // Add UTM tag if advisor is selected
+          if (selectedAdvisor) {
+            const advisorName = sanitizeAdvisorNameForUTM(selectedAdvisor.nombre)
+            const utmTag = `utm_campaign=xianna_${advisorName}_${selectedAdvisor.id}`
+
+            // Check if URL already has query parameters
+            const separator = prendaLink.includes('?') ? '&' : '?'
+            prendaLink = `${prendaLink}${separator}${utmTag}`
+          }
+
+          return {
+            ...prenda,
+            link: prendaLink,
+            imagen: prendasWithImages[index]?.imagen
+          }
+        })
       }
 
       if (isEditing && outfitId) {
@@ -274,14 +347,14 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
         await dispatch(createOutfit(formDataWithImages)).unwrap()
         toast.success('Outfit creado exitosamente')
       }
-      
+
       // Clean up preview URLs
       prendasWithImages.forEach(prenda => {
         if (prenda.imagenPreview && prenda.imagenPreview.startsWith('blob:')) {
           URL.revokeObjectURL(prenda.imagenPreview)
         }
       })
-      
+
       onSuccess?.()
     } catch (error) {
       toast.error(isEditing ? 'Error al actualizar el outfit' : 'Error al crear el outfit')
@@ -298,7 +371,7 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
         }
       })
     }
-  }, [])
+  }, [prendasWithImages])
 
   return (
     <div className="space-y-6">
@@ -590,6 +663,23 @@ export function OutfitForm({ outfitId, initialData, onSuccess, onCancel }: Outfi
                       <p className="text-red-500 text-sm mt-1">
                         {errors.prendas[index]?.link?.message}
                       </p>
+                    )}
+
+                    {/* Show full URL preview with UTM if advisor is selected */}
+                    {watch('advisor_id') && (watch('advisor_id') ?? 0) > 0 && watch(`prendas.${index}.link`) && (
+                      <div className="mt-2">
+                        <p className="text-xs font-medium text-gray-700 mb-1">
+                          URL completa que se guardará:
+                        </p>
+                        <div className="bg-blue-50 border border-blue-200 rounded-md px-3 py-2 break-all">
+                          <code className="text-xs text-blue-800">
+                            {generateURLWithUTM(watch(`prendas.${index}.link`) || '', watch('advisor_id'))}
+                          </code>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          El tag UTM se agregará automáticamente al guardar
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>

@@ -224,7 +224,7 @@ export function BlogForm({ onSuccess, onCancel, blogId, initialData }: BlogFormP
         }
       })
     }
-  }, [])
+  }, [images])
 
   return (
     <div className="space-y-6">

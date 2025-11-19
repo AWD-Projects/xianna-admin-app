@@ -13,6 +13,7 @@ import type { AppDispatch, RootState } from '@/store'
 import type { Style, StyleFormData } from '@/types'
 import { Plus, Edit, Save, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const styleSchema = z.object({
   tipo: z.string().min(1, 'El tipo es requerido'),
@@ -193,8 +194,21 @@ export function StyleManagement() {
             </CardHeader>
             <CardContent>
               {loading ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600"></div>
+                <div className="space-y-3">
+                  {[...Array(4)].map((_, index) => (
+                    <div key={index} className="p-4 border rounded-lg">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-full" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="h-8 w-16 rounded-full" />
+                          <Skeleton className="h-6 w-12 rounded-lg" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : styles.length === 0 ? (
                 <div className="text-center py-8">

@@ -35,35 +35,36 @@ const initialState: OutfitState = {
 // Async thunks
 export const fetchOutfits = createAsyncThunk(
   'outfit/fetchOutfits',
-  async ({ 
-    page = 1, 
-    pageSize = 10, 
-    search = '', 
-    styleFilter = '', 
-    occasionFilter = '' 
-  }: { 
-    page?: number; 
-    pageSize?: number; 
-    search?: string; 
-    styleFilter?: string; 
-    occasionFilter?: string; 
+  async ({
+    page = 1,
+    pageSize = 10,
+    search = '',
+    styleFilter = '',
+    occasionFilter = '',
+  }: {
+    page?: number
+    pageSize?: number
+    search?: string
+    styleFilter?: string
+    occasionFilter?: string
   }) => {
     const supabase = createClient()
-    
+
     let query = supabase
       .from('outfits')
-      .select(`
+      .select(
+        `
         *,
         estilos!inner(tipo, status),
         advisors(id, nombre, especialidad)
-      `, { count: 'exact' })
+      `,
+        { count: 'exact' }
+      )
 
-    // Apply search filter
     if (search) {
       query = query.or(`nombre.ilike.%${search}%,descripcion.ilike.%${search}%`)
     }
 
-    // Apply style filter
     if (styleFilter) {
       query = query.eq('estilos.tipo', styleFilter)
     }
@@ -74,90 +75,94 @@ export const fetchOutfits = createAsyncThunk(
 
     if (error) throw error
 
-    // Get outfit details with images and occasions
+    const outfits = data || []
+    const outfitIds = outfits.map((outfit: any) => outfit.id)
+
+    // Fetch favorites in bulk
+    const favoriteCountMap = new Map<number, number>()
+    if (outfitIds.length > 0) {
+      const { data: favoritesData } = await supabase
+        .from('favoritos')
+        .select('outfit')
+        .in('outfit', outfitIds)
+
+      favoritesData?.forEach((fav) => {
+        favoriteCountMap.set(fav.outfit, (favoriteCountMap.get(fav.outfit) || 0) + 1)
+      })
+    }
+
+    // Fetch occasions mapping in bulk
+    let occasionLookup = new Map<number, string>()
+    let outfitOccasionMap = new Map<number, number[]>()
+
+    if (outfitIds.length > 0) {
+      const [{ data: occasionsData }, { data: allOccasions }] = await Promise.all([
+        supabase
+          .from('outfit_ocasion')
+          .select('id_outfit, id_ocasion')
+          .in('id_outfit', outfitIds),
+        supabase.from('ocasion').select('id, ocasion'),
+      ])
+
+      occasionLookup = new Map(
+        (allOccasions || []).map((occasion) => [occasion.id, occasion.ocasion])
+      )
+
+      occasionsData?.forEach((item) => {
+        const current = outfitOccasionMap.get(item.id_outfit) || []
+        current.push(item.id_ocasion)
+        outfitOccasionMap.set(item.id_outfit, current)
+      })
+    }
+
     const outfitsWithDetails = await Promise.all(
-      (data || []).map(async (outfit: any) => {
-        // Get outfit image with error handling - using correct Outfits bucket and path
-        let imageUrl = null
+      outfits.map(async (outfit: any) => {
+        let imageUrl: string | null = null
         try {
-          // Use Outfits bucket with correct path structure
-          const { data: files, error: listError } = await supabase.storage
+          const { data: files } = await supabase.storage
             .from('Outfits')
             .list(`uploads/${outfit.id}/imagen_principal`)
-            
-          console.log(`Checking Outfits bucket for outfit ${outfit.id}:`, { files, listError })
-          
-          if (!listError && files && files.length > 0) {
-            // Sort files by created_at timestamp to get the most recent one
-            const sortedFiles = files.sort((a, b) => 
-              new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+
+          if (files && files.length > 0) {
+            const sortedFiles = files.sort(
+              (a, b) =>
+                new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
             )
             const path = `uploads/${outfit.id}/imagen_principal/${sortedFiles[0].name}`
-              
-            const { data: urlData } = supabase.storage
-              .from('Outfits')
-              .getPublicUrl(path)
-            
-            // Only set imageUrl if we have a valid public URL
-            if (urlData?.publicUrl) {
-              imageUrl = urlData.publicUrl
-              console.log(`Generated image URL for outfit ${outfit.id}:`, imageUrl)
-            } else {
-              console.warn(`No public URL generated for outfit ${outfit.id}`)
-            }
-          } else {
-            console.warn(`No files found for outfit ${outfit.id} in Outfits bucket`)
+            const { data: urlData } = supabase.storage.from('Outfits').getPublicUrl(path)
+            imageUrl = urlData.publicUrl
           }
-        } catch (error) {
-          console.warn(`Error loading image for outfit ${outfit.id}:`, error)
-          // imageUrl remains null, will show placeholder in UI
+        } catch (storageError) {
+          console.warn(`Error loading image for outfit ${outfit.id}:`, storageError)
         }
 
-        // Get occasions
-        const { data: outfitOccasions } = await supabase
-          .from('outfit_ocasion')
-          .select('id_ocasion')
-          .eq('id_outfit', outfit.id)
-
-        // Get occasion names separately
-        let ocasiones: string[] = []
-        if (outfitOccasions && outfitOccasions.length > 0) {
-          const occasionIds = outfitOccasions.map((oo: any) => oo.id_ocasion)
-          const { data: occasionsData } = await supabase
-            .from('ocasion')
-            .select('ocasion')
-            .in('id', occasionIds)
-          
-          ocasiones = occasionsData?.map((o: any) => o.ocasion) || []
-        }
-
-        // Get favorites count
-        const { count: favoritesCount } = await supabase
-          .from('favoritos')
-          .select('*', { count: 'exact', head: true })
-          .eq('outfit', outfit.id)
+        const occasionIds = outfitOccasionMap.get(outfit.id) || []
+        const ocasiones = occasionIds
+          .map((occasionId) => occasionLookup.get(occasionId))
+          .filter(Boolean) as string[]
 
         return {
           ...outfit,
-          estilo: outfit.estilos.tipo,
-          estiloStatus: outfit.estilos.status,
+          estilo: outfit.estilos?.tipo || 'Sin estilo',
+          estiloStatus: outfit.estilos?.status || 'activo',
           imagen: imageUrl,
-          ocasiones: ocasiones,
-          favoritos: favoritesCount || 0,
-          advisor: outfit.advisors ? {
-            id: outfit.advisors.id,
-            nombre: outfit.advisors.nombre,
-            especialidad: outfit.advisors.especialidad
-          } : undefined
+          ocasiones,
+          favoritos: favoriteCountMap.get(outfit.id) || 0,
+          advisor: outfit.advisors
+            ? {
+                id: outfit.advisors.id,
+                nombre: outfit.advisors.nombre,
+                especialidad: outfit.advisors.especialidad,
+              }
+            : undefined,
         }
       })
     )
 
-    // Apply occasion filter after data processing
     let filteredOutfits = outfitsWithDetails
     if (occasionFilter) {
-      filteredOutfits = outfitsWithDetails.filter(outfit => 
-        outfit.ocasiones.some((ocasion: string) => 
+      filteredOutfits = outfitsWithDetails.filter((outfit) =>
+        outfit.ocasiones.some((ocasion: string) =>
           ocasion.toLowerCase().includes(occasionFilter.toLowerCase())
         )
       )
@@ -166,8 +171,10 @@ export const fetchOutfits = createAsyncThunk(
     return {
       outfits: filteredOutfits,
       totalOutfits: occasionFilter ? filteredOutfits.length : count || 0,
-      totalPages: Math.ceil((occasionFilter ? filteredOutfits.length : count || 0) / pageSize),
-      currentPage: page
+      totalPages: Math.ceil(
+        (occasionFilter ? filteredOutfits.length : count || 0) / pageSize
+      ),
+      currentPage: page,
     }
   }
 )
@@ -228,50 +235,88 @@ export const createOutfit = createAsyncThunk(
 
     // Upload main outfit image if provided
     if (outfitData.imagen) {
-      const fileName = `${Date.now()}_${outfitData.imagen.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
-      await supabase.storage
-        .from('Outfits')
-        .upload(`uploads/${data.id}/imagen_principal/${fileName}`, outfitData.imagen)
+      try {
+        const fileName = `${Date.now()}_${outfitData.imagen.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
+        const { error: uploadError } = await supabase.storage
+          .from('Outfits')
+          .upload(`uploads/${data.id}/imagen_principal/${fileName}`, outfitData.imagen)
+
+        if (uploadError) {
+          console.error('Error uploading main outfit image:', uploadError)
+        }
+      } catch (error) {
+        console.error('Failed to upload main outfit image:', error)
+      }
     }
 
     // Add occasions
     if (outfitData.ocasiones.length > 0) {
-      const occasionInserts = outfitData.ocasiones.map(occasionId => ({
-        id_outfit: data.id,
-        id_ocasion: occasionId
-      }))
-      
-      await supabase
-        .from('outfit_ocasion')
-        .insert(occasionInserts)
+      try {
+        const occasionInserts = outfitData.ocasiones.map(occasionId => ({
+          id_outfit: data.id,
+          id_ocasion: occasionId
+        }))
+
+        const { error: occasionError } = await supabase
+          .from('outfit_ocasion')
+          .insert(occasionInserts)
+
+        if (occasionError) {
+          console.error('Error inserting occasions:', occasionError)
+        }
+      } catch (error) {
+        console.error('Failed to add occasions to outfit:', error)
+      }
     }
 
     // Create prendas and upload their images
     if (outfitData.prendas.length > 0) {
-      const prendaInserts = outfitData.prendas.map(prenda => ({
-        nombre: prenda.nombre,
-        link: prenda.link,
-        id_outfit: data.id
-      }))
-      
-      const { data: insertedPrendas } = await supabase
-        .from('prendas')
-        .insert(prendaInserts)
-        .select('id')
+      try {
+        const prendaInserts = outfitData.prendas.map(prenda => ({
+          nombre: prenda.nombre,
+          link: prenda.link,
+          id_outfit: data.id
+        }))
 
-      // Upload prenda images if provided
-      if (insertedPrendas) {
-        for (let i = 0; i < outfitData.prendas.length; i++) {
-          const prenda = outfitData.prendas[i]
-          const prendaId = insertedPrendas[i].id
-          
-          if (prenda.imagen) {
-            const fileName = `${Date.now()}_${prenda.imagen.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
-            await supabase.storage
-              .from('Outfits')
-              .upload(`uploads/${data.id}/prendas/${prendaId}/${fileName}`, prenda.imagen)
+        const { data: insertedPrendas, error: prendaError } = await supabase
+          .from('prendas')
+          .insert(prendaInserts)
+          .select('id, nombre')
+
+        if (prendaError) {
+          console.error('Error inserting prendas:', prendaError)
+        } else if (insertedPrendas && insertedPrendas.length > 0) {
+          // Upload prenda images if provided
+          for (let i = 0; i < outfitData.prendas.length; i++) {
+            const prenda = outfitData.prendas[i]
+
+            if (prenda.imagen) {
+              try {
+                // Match prenda by name to avoid index mismatch
+                const matchedPrenda = insertedPrendas.find(p => p.nombre === prenda.nombre)
+                const prendaId = matchedPrenda?.id || insertedPrendas[i]?.id
+
+                if (!prendaId) {
+                  console.error(`Could not find prenda ID for ${prenda.nombre}`)
+                  continue
+                }
+
+                const fileName = `${Date.now()}_${prenda.imagen.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
+                const { error: uploadError } = await supabase.storage
+                  .from('Outfits')
+                  .upload(`uploads/${data.id}/prendas/${prendaId}/${fileName}`, prenda.imagen)
+
+                if (uploadError) {
+                  console.error(`Error uploading image for prenda ${prenda.nombre}:`, uploadError)
+                }
+              } catch (error) {
+                console.error(`Failed to upload image for prenda ${prenda.nombre}:`, error)
+              }
+            }
           }
         }
+      } catch (error) {
+        console.error('Failed to create prendas:', error)
       }
     }
 
@@ -571,6 +616,7 @@ const outfitSlice = createSlice({
         state.loading = false
         state.outfits.unshift(action.payload as any)
         state.pagination.totalOutfits += 1
+        state.pagination.totalPages = Math.ceil(state.pagination.totalOutfits / state.pagination.pageSize)
       })
       .addCase(createOutfit.rejected, (state, action) => {
         state.loading = false
@@ -601,6 +647,7 @@ const outfitSlice = createSlice({
         state.loading = false
         state.outfits = state.outfits.filter(outfit => outfit.id !== action.payload)
         state.pagination.totalOutfits -= 1
+        state.pagination.totalPages = Math.ceil(state.pagination.totalOutfits / state.pagination.pageSize)
       })
       .addCase(deleteOutfit.rejected, (state, action) => {
         state.loading = false
