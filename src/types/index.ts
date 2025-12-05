@@ -428,10 +428,10 @@ export interface NewsletterFormData {
   selectedEmails: string[]
   // Campos personalizables para la plantilla mensual
   nueva_marca?: string
-  looks_estilo?: string
+  looks_estilo?: Array<{ id: number; type: 'blog' | 'outfit' }> // Array de blogs/outfits seleccionados con su tipo
   piezas_esenciales?: string
   // Campo personalizable para la plantilla semanal
-  looks_semanal?: string
+  looks_semanal?: Array<{ id: number; type: 'blog' | 'outfit' }> // Array de blogs/outfits seleccionados con su tipo
   // Campos personalizables para la plantilla WhatsApp semanal
   titulo_tema?: string
   enlace_recurso?: string

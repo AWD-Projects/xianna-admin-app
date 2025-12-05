@@ -10,17 +10,19 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { 
+import {
   fetchCampaigns,
-  fetchUsersForNewsletter, 
-  createCampaign, 
-  toggleUserSelection, 
+  fetchUsersForNewsletter,
+  createCampaign,
+  toggleUserSelection,
   selectAllUsers,
   clearSelectedUsers,
   sendNewsletterCampaign
 } from '@/store/slices/newsletterSlice'
+import { fetchBlogs } from '@/store/slices/blogSlice'
+import { fetchOutfits } from '@/store/slices/outfitSlice'
 import type { AppDispatch, RootState } from '@/store'
-import type { NewsletterFormData, NewsletterFilters, SelectedUser } from '@/types'
+import type { NewsletterFormData, NewsletterFilters, SelectedUser, Blog, Outfit } from '@/types'
 import { Send, Users, Filter, CheckSquare, Square, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -282,22 +284,31 @@ export default function CreateNewsletterPage() {
   const router = useRouter()
   const dispatch = useDispatch<AppDispatch>()
   const { selectedUsers, campaigns, loading, error } = useSelector((state: RootState) => state.newsletter)
-  
+  const { blogs } = useSelector((state: RootState) => state.blog)
+  const { outfits } = useSelector((state: RootState) => state.outfit)
+
   const [formData, setFormData] = useState<NewsletterFormData>({
     nombre: '',
     asunto: '',
     template_usado: '',
     canal: 'correo', // 'correo' o 'whatsapp'
     filtros_aplicados: {},
-    selectedEmails: []
+    selectedEmails: [],
+    looks_estilo: [],
+    looks_semanal: []
   })
-  
+
   const [filters, setFilters] = useState<NewsletterFilters>({})
   const [step, setStep] = useState<'details' | 'users' | 'preview'>('details')
+  const [contentTypeMensual, setContentTypeMensual] = useState<'blogs' | 'outfits'>('outfits')
+  const [contentTypeSemanal, setContentTypeSemanal] = useState<'blogs' | 'outfits'>('outfits')
 
   useEffect(() => {
     // Fetch campaigns to calculate email usage
     dispatch(fetchCampaigns())
+    // Fetch blogs and outfits for content selection
+    dispatch(fetchBlogs({ page: 1, pageSize: 100 }))
+    dispatch(fetchOutfits({ page: 1, pageSize: 100 }))
   }, [dispatch])
 
   useEffect(() => {
@@ -335,10 +346,63 @@ export default function CreateNewsletterPage() {
 
   const getStyleName = (tipoEstilo: number) => {
     const styleMap: { [key: number]: string } = {
-      1: 'Casual', 2: 'Elegante', 3: 'Deportivo', 4: 'Boho', 
+      1: 'Casual', 2: 'Elegante', 3: 'Deportivo', 4: 'Boho',
       5: 'Minimalista', 6: 'Rockero', 7: 'Vintage'
     }
     return styleMap[tipoEstilo] || `Estilo ${tipoEstilo}`
+  }
+
+  // Handler para seleccionar/deseleccionar contenido (blogs/outfits) en plantilla mensual
+  const handleLooksEstiloToggle = (itemId: number, itemType: 'blog' | 'outfit') => {
+    const currentSelection = formData.looks_estilo || []
+    const isSelected = currentSelection.some(item => item.id === itemId && item.type === itemType)
+    const newSelection = isSelected
+      ? currentSelection.filter(item => !(item.id === itemId && item.type === itemType))
+      : [...currentSelection, { id: itemId, type: itemType }]
+    setFormData(prev => ({ ...prev, looks_estilo: newSelection }))
+  }
+
+  // Handler para seleccionar/deseleccionar contenido (blogs/outfits) en plantilla semanal
+  const handleLooksSemanalToggle = (itemId: number, itemType: 'blog' | 'outfit') => {
+    const currentSelection = formData.looks_semanal || []
+    const isSelected = currentSelection.some(item => item.id === itemId && item.type === itemType)
+    const newSelection = isSelected
+      ? currentSelection.filter(item => !(item.id === itemId && item.type === itemType))
+      : [...currentSelection, { id: itemId, type: itemType }]
+    setFormData(prev => ({ ...prev, looks_semanal: newSelection }))
+  }
+
+  // Obtener contenido seleccionado (blogs o outfits)
+  const getContentList = (contentType: 'blogs' | 'outfits') => {
+    return contentType === 'blogs' ? blogs : outfits
+  }
+
+  // Type guard para verificar si es un Blog
+  const isBlog = (item: any): item is Blog => {
+    return 'titulo' in item
+  }
+
+  // Generar HTML con enlaces de los items seleccionados
+  const generateContentHTML = (selectedItems: Array<{ id: number; type: 'blog' | 'outfit' }>) => {
+    return selectedItems.map(({ id, type }) => {
+      // Buscar el item en el array correcto según su tipo
+      const item = type === 'blog'
+        ? blogs.find(b => b.id === id)
+        : outfits.find(o => o.id === id)
+
+      if (!item) return ''
+
+      const name = isBlog(item) ? item.titulo : item.nombre
+      const url = type === 'blog'
+        ? `${process.env.NEXT_PUBLIC_APP_URL || 'https://xianna.com'}/blogs/${id}`
+        : `${process.env.NEXT_PUBLIC_APP_URL || 'https://xianna.com'}/catalogo/${id}`
+
+      return `<div style="margin-bottom: 10px;">
+        <a href="${url}" style="color: #ec4899; text-decoration: none; font-weight: 500;">
+          ${name}
+        </a>
+      </div>`
+    }).join('')
   }
 
   const handleNext = () => {
@@ -349,15 +413,15 @@ export default function CreateNewsletterPage() {
       }
       // Validar campos personalizables para la plantilla "Edición Mensual Xianna"
       if (formData.template_usado === '3') {
-        if (!formData.nueva_marca || !formData.looks_estilo || !formData.piezas_esenciales) {
-          toast.error('Por favor completa todos los campos personalizables de la edición mensual')
+        if (!formData.nueva_marca || !formData.looks_estilo || formData.looks_estilo.length === 0 || !formData.piezas_esenciales) {
+          toast.error('Por favor completa todos los campos personalizables de la edición mensual y selecciona al menos un blog u outfit')
           return
         }
       }
       // Validar campo personalizable para la plantilla "Resumen Semanal Xianna"
       if (formData.template_usado === '4') {
-        if (!formData.looks_semanal) {
-          toast.error('Por favor completa el campo personalizable del resumen semanal')
+        if (!formData.looks_semanal || formData.looks_semanal.length === 0) {
+          toast.error('Por favor selecciona al menos un blog u outfit para el resumen semanal')
           return
         }
       }
@@ -425,14 +489,16 @@ export default function CreateNewsletterPage() {
         let htmlContent = selectedTemplate.htmlContent
         if (formData.template_usado === '3') {
           // Plantilla mensual de correo
+          const looksHTML = generateContentHTML(formData.looks_estilo || [])
           htmlContent = htmlContent
             .replace(/\{\{nueva_marca\}\}/g, formData.nueva_marca || '')
-            .replace(/\{\{looks_estilo\}\}/g, formData.looks_estilo || '')
+            .replace(/\{\{looks_estilo\}\}/g, looksHTML)
             .replace(/\{\{piezas_esenciales\}\}/g, formData.piezas_esenciales || '')
         } else if (formData.template_usado === '4') {
           // Plantilla semanal de correo
+          const looksHTML = generateContentHTML(formData.looks_semanal || [])
           htmlContent = htmlContent
-            .replace(/\{\{looks_semanal\}\}/g, formData.looks_semanal || '')
+            .replace(/\{\{looks_semanal\}\}/g, looksHTML)
         } else if (formData.template_usado === '5') {
           // Plantilla newsletter de WhatsApp
           htmlContent = htmlContent
@@ -564,9 +630,9 @@ export default function CreateNewsletterPage() {
                       template_usado: shouldResetTemplate ? '' : prev.template_usado,
                       // Resetear campos personalizables si se resetea el template
                       nueva_marca: shouldResetTemplate ? undefined : prev.nueva_marca,
-                      looks_estilo: shouldResetTemplate ? undefined : prev.looks_estilo,
+                      looks_estilo: shouldResetTemplate ? [] : prev.looks_estilo,
                       piezas_esenciales: shouldResetTemplate ? undefined : prev.piezas_esenciales,
-                      looks_semanal: shouldResetTemplate ? undefined : prev.looks_semanal,
+                      looks_semanal: shouldResetTemplate ? [] : prev.looks_semanal,
                       titulo_tema: shouldResetTemplate ? undefined : prev.titulo_tema,
                       enlace_recurso: shouldResetTemplate ? undefined : prev.enlace_recurso,
                       cta_dia: shouldResetTemplate ? undefined : prev.cta_dia,
@@ -640,14 +706,54 @@ export default function CreateNewsletterPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="looks_estilo">Looks por estilo + enlaces</Label>
-                  <Textarea
-                    id="looks_estilo"
-                    value={formData.looks_estilo || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, looks_estilo: e.target.value }))}
-                    placeholder="Incluye los looks recomendados según estilos con sus enlaces correspondientes..."
-                    rows={4}
-                  />
+                  <Label>Looks por estilo + enlaces</Label>
+                  <div className="space-y-3 mt-2">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={contentTypeMensual === 'outfits' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setContentTypeMensual('outfits')}
+                      >
+                        Outfits
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={contentTypeMensual === 'blogs' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setContentTypeMensual('blogs')}
+                      >
+                        Blogs
+                      </Button>
+                    </div>
+
+                    <div className="border rounded-lg p-3 max-h-60 overflow-y-auto">
+                      <p className="text-sm text-gray-600 mb-3">
+                        {formData.looks_estilo && formData.looks_estilo.length > 0
+                          ? `${formData.looks_estilo.length} seleccionado(s)`
+                          : 'Selecciona uno o más items'}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {getContentList(contentTypeMensual).map((item) => {
+                          const itemType = contentTypeMensual === 'blogs' ? 'blog' : 'outfit'
+                          const isSelected = formData.looks_estilo?.some(
+                            selected => selected.id === item.id && selected.type === itemType
+                          ) || false
+                          const itemName = isBlog(item) ? item.titulo : item.nombre
+                          return (
+                            <Badge
+                              key={`${itemType}-${item.id}`}
+                              variant={isSelected ? 'default' : 'outline'}
+                              className="cursor-pointer justify-start text-left p-2 h-auto"
+                              onClick={() => handleLooksEstiloToggle(item.id, itemType)}
+                            >
+                              {itemName}
+                            </Badge>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -671,19 +777,59 @@ export default function CreateNewsletterPage() {
                     Contenido personalizable
                   </h3>
                   <p className="text-sm text-gray-600 mb-4">
-                    Completa el siguiente campo para personalizar el resumen semanal
+                    Selecciona blogs u outfits para personalizar el resumen semanal
                   </p>
                 </div>
 
                 <div>
-                  <Label htmlFor="looks_semanal">Looks por estilo + enlaces</Label>
-                  <Textarea
-                    id="looks_semanal"
-                    value={formData.looks_semanal || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, looks_semanal: e.target.value }))}
-                    placeholder="Incluye los looks sugeridos de la semana con sus enlaces correspondientes..."
-                    rows={6}
-                  />
+                  <Label>Looks por estilo + enlaces</Label>
+                  <div className="space-y-3 mt-2">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={contentTypeSemanal === 'outfits' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setContentTypeSemanal('outfits')}
+                      >
+                        Outfits
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={contentTypeSemanal === 'blogs' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setContentTypeSemanal('blogs')}
+                      >
+                        Blogs
+                      </Button>
+                    </div>
+
+                    <div className="border rounded-lg p-3 max-h-60 overflow-y-auto">
+                      <p className="text-sm text-gray-600 mb-3">
+                        {formData.looks_semanal && formData.looks_semanal.length > 0
+                          ? `${formData.looks_semanal.length} seleccionado(s)`
+                          : 'Selecciona uno o más items'}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {getContentList(contentTypeSemanal).map((item) => {
+                          const itemType = contentTypeSemanal === 'blogs' ? 'blog' : 'outfit'
+                          const isSelected = formData.looks_semanal?.some(
+                            selected => selected.id === item.id && selected.type === itemType
+                          ) || false
+                          const itemName = isBlog(item) ? item.titulo : item.nombre
+                          return (
+                            <Badge
+                              key={`${itemType}-${item.id}`}
+                              variant={isSelected ? 'default' : 'outline'}
+                              className="cursor-pointer justify-start text-left p-2 h-auto"
+                              onClick={() => handleLooksSemanalToggle(item.id, itemType)}
+                            >
+                              {itemName}
+                            </Badge>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </>
             )}
@@ -1099,13 +1245,19 @@ export default function CreateNewsletterPage() {
 
                     // Reemplazar placeholders según la plantilla
                     if (formData.template_usado === '3') {
+                      const looksHTML = formData.looks_estilo && formData.looks_estilo.length > 0
+                        ? generateContentHTML(formData.looks_estilo)
+                        : '[Selecciona blogs u outfits]'
                       htmlContent = htmlContent
                         .replace(/\{\{nueva_marca\}\}/g, formData.nueva_marca || '[Nueva marca + highlight]')
-                        .replace(/\{\{looks_estilo\}\}/g, formData.looks_estilo || '[Looks por estilo + enlaces]')
+                        .replace(/\{\{looks_estilo\}\}/g, looksHTML)
                         .replace(/\{\{piezas_esenciales\}\}/g, formData.piezas_esenciales || '[Piezas esenciales del mes]')
                     } else if (formData.template_usado === '4') {
+                      const looksHTML = formData.looks_semanal && formData.looks_semanal.length > 0
+                        ? generateContentHTML(formData.looks_semanal)
+                        : '[Selecciona blogs u outfits]'
                       htmlContent = htmlContent
-                        .replace(/\{\{looks_semanal\}\}/g, formData.looks_semanal || '[Looks por estilo + enlaces]')
+                        .replace(/\{\{looks_semanal\}\}/g, looksHTML)
                     } else if (formData.template_usado === '5') {
                       htmlContent = htmlContent
                         .replace(/\{\{titulo_tema\}\}/g, formData.titulo_tema || '[Título o tema]')
