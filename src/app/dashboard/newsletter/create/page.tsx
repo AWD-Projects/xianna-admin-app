@@ -30,134 +30,212 @@ import { toast } from 'sonner'
 const EMAIL_TEMPLATES = [
   {
     id: '1',
-    name: 'Promoción de Estilo',
-    subject: '¡Descubre tu nuevo estilo favorito!',
-    htmlContent: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <header style="background: linear-gradient(135deg, #ec4899 0%, #be185d 100%); color: white; padding: 40px 20px; text-align: center;">
-          <h1 style="margin: 0; font-size: 28px;">¡Hola {{nombre}}!</h1>
-          <p style="margin: 10px 0 0 0; font-size: 16px;">Tenemos nuevas tendencias especialmente para ti</p>
-        </header>
-        <main style="padding: 40px 20px;">
-          <h2 style="color: #1f2937; font-size: 24px; margin-bottom: 20px;">Nuevas Tendencias de Moda</h2>
-          <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-            Descubre las últimas tendencias en moda que se adaptan perfectamente a tu estilo {{tipo_estilo}}. 
-            Nuestros expertos han seleccionado las mejores piezas para ti desde {{estado}}.
-          </p>
-          <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 30px 0;">
-            <h3 style="color: #1f2937; margin-top: 0;">¿Sabías que?</h3>
-            <p style="color: #4b5563; margin-bottom: 0;">
-              Más del 80% de nuestros usuarios han encontrado su outfit perfecto siguiendo nuestras recomendaciones personalizadas.
-            </p>
-          </div>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="#" style="background: #ec4899; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-              Ver Nuevas Tendencias
-            </a>
-          </div>
-        </main>
-        <footer style="background: #f3f4f6; padding: 20px; text-align: center; color: #6b7280; font-size: 14px;">
-          <p>Xianna - Tu plataforma de moda personalizada</p>
-          <p>Si no deseas recibir más emails, <a href="#" style="color: #ec4899;">haz clic aquí</a></p>
-        </footer>
-      </div>
-    `
-  },
-  {
-    id: '2',
-    name: 'Consejos de Outfit',
-    subject: 'Consejos personalizados para tu guardarropa',
-    htmlContent: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <header style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; padding: 40px 20px; text-align: center;">
-          <h1 style="margin: 0; font-size: 28px;">Hola {{nombre}}</h1>
-          <p style="margin: 10px 0 0 0; font-size: 16px;">Consejos de moda especialmente para ti</p>
-        </header>
-        <main style="padding: 40px 20px;">
-          <h2 style="color: #1f2937; font-size: 24px; margin-bottom: 20px;">Tips de Styling Personal</h2>
-          <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-            Como alguien con estilo {{tipo_estilo}} y tipo de cuerpo {{tipo_cuerpo}}, hemos preparado
-            consejos especiales para que luzcas increíble en cualquier ocasión.
-          </p>
-          <div style="border-left: 4px solid #3b82f6; padding-left: 20px; margin: 30px 0;">
-            <h3 style="color: #1f2937; margin-top: 0;">Consejo del día</h3>
-            <p style="color: #4b5563; margin-bottom: 0;">
-              Las prendas que mejor se adaptan a tu tipo de cuerpo son aquellas que realzan tus mejores atributos.
-              ¡Descubre cuáles son en nuestra nueva guía!
-            </p>
-          </div>
-          <ul style="color: #4b5563; line-height: 1.8;">
-            <li>Combina colores que complementen tu tono de piel</li>
-            <li>Elige texturas que favorezcan tu figura</li>
-            <li>Experimenta con accesorios para personalizar tu look</li>
-          </ul>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="#" style="background: #3b82f6; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-              Ver Guía Completa
-            </a>
-          </div>
-        </main>
-        <footer style="background: #f3f4f6; padding: 20px; text-align: center; color: #6b7280; font-size: 14px;">
-          <p>Xianna - Tu consultor de moda personal</p>
-          <p>Si no deseas recibir más emails, <a href="#" style="color: #3b82f6;">haz clic aquí</a></p>
-        </footer>
-      </div>
-    `
-  },
-  {
-    id: '3',
     name: 'Edición Mensual Xianna',
     subject: 'Tu edición mensual de Xianna',
     htmlContent: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <header style="background: linear-gradient(135deg, #ec4899 0%, #be185d 100%); color: white; padding: 40px 20px; text-align: center;">
-          <h1 style="margin: 0; font-size: 28px;">Hola 🩷</h1>
-        </header>
-        <main style="padding: 40px 20px;">
-          <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-            Bienvenida a la edición mensual de Xianna: una curaduría exclusiva de marcas, tendencias y piezas esenciales diseñadas para acompañarte a perfeccionar tu estilo de forma consciente y sofisticada.
-          </p>
+    <div style="background-color:#f7f4f5; padding:24px 0; font-family:'Helvetica Neue', Arial, sans-serif;">
+      <table align="center" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px; margin:0 auto; background-color:#fff; border-collapse:collapse;">
 
-          <h2 style="color: #1f2937; font-size: 20px; margin-bottom: 15px; margin-top: 30px;">Este mes encontrarás:</h2>
-          <ul style="color: #4b5563; line-height: 1.8; margin-bottom: 30px;">
-            <li>Marcas destacadas recientemente incorporadas a Xianna.</li>
-            <li>Looks recomendados según tu estilo.</li>
-            <li>Selección mensual de prendas clave para actualizar tu clóset con intención.</li>
-          </ul>
+        <!-- Barra superior -->
+        <tr>
+          <td style="padding:12px 24px; background-color:#fdf5f2;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+              <tr>
+                <td style="font-size:12px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; color:#222;">
+                  Xianna · Edición mensual
+                </td>
+                <td style="text-align:right; font-size:11px; color:#777;">
+                  Curaduría de estilo consciente
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-          <h2 style="color: #1f2937; font-size: 24px; margin-bottom: 20px; margin-top: 40px;">Selección del mes</h2>
+        <!-- Nav -->
+        <tr>
+          <td style="padding:10px 24px; background-color:#c6d9b8;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; text-align:center; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#253028;">
+              <tr>
+                <td style="padding:0 8px;">Accesorios</td>
+                <td style="padding:0 8px;">Prendas</td>
+                <td style="padding:0 8px;">Nuevas marcas</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-          <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="color: #1f2937; margin-top: 0;">Nueva marca destacada</h3>
-            <p style="color: #4b5563; margin-bottom: 0; white-space: pre-line;">{{nueva_marca}}</p>
-          </div>
+        <!-- Hero (similar al diseño de ejemplo) -->
+        <tr>
+          <td style="padding:28px 24px 24px; background-color:#f8c8d8;">
+            <div style="text-align:center; font-size:26px; letter-spacing:0.20em; text-transform:uppercase; color:#222; font-weight:500; line-height:1.1;">
+              Edición mensual Xianna
+            </div>
+          </td>
+        </tr>
 
-          <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="color: #1f2937; margin-top: 0;">Looks por estilo</h3>
-            <p style="color: #4b5563; margin-bottom: 0; white-space: pre-line;">{{looks_estilo}}</p>
-          </div>
+        <!-- Intro + imagen grande + 2 imágenes pequeñas -->
+        <tr>
+          <td style="padding:24px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+              <tr>
 
-          <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="color: #1f2937; margin-top: 0;">Piezas esenciales del mes</h3>
-            <p style="color: #4b5563; margin-bottom: 0; white-space: pre-line;">{{piezas_esenciales}}</p>
-          </div>
+                <!-- Columna con imagen adaptada a la altura del texto -->
+                <td width="50%" valign="top" 
+                    background="https://aliancadorada.com/wp-content/uploads/2025/04/0001_1_business-outfits-for-women-summer-2025-i_igaksbort1a0zcoxufflag_ctct9ypftww4wmr5-yvdbg_cover.jpg"
+                    style="
+                      background-size: cover;
+                      background-position: center;
+                      background-repeat: no-repeat;
+                    ">
+                  <!-- Spacer necesario para Outlook -->
+                  <div style="height:100%; min-height:100%; line-height:0; font-size:0;">
+                    &nbsp;
+                  </div>
+                </td>
 
-          <p style="color: #4b5563; font-size: 16px; margin-top: 40px;">
-            Gracias por ser parte de Xianna.
-          </p>
-          <p style="color: #4b5563; font-size: 16px; font-weight: 600;">
-            Equipo Xianna
-          </p>
-        </main>
-        <footer style="background: #f3f4f6; padding: 20px; text-align: center; color: #6b7280; font-size: 14px;">
-          <p>Xianna - Tu plataforma de moda personalizada</p>
-          <p>Si no deseas recibir más emails, <a href="#" style="color: #ec4899;">haz clic aquí</a></p>
-        </footer>
-      </div>
-    `
+                <td width="4%" style="font-size:0;">&nbsp;</td>
+
+                <!-- Texto -->
+                <td width="46%" valign="top" style="vertical-align:top;">
+                  <div style="font-size:14px; color:#4b5563; line-height:1.7; margin-bottom:14px;">
+                    Bienvenida a la edición mensual de Xianna: una curaduría exclusiva de marcas,
+                    tendencias y piezas esenciales diseñadas para acompañarte a perfeccionar tu estilo
+                    de forma consciente y sofisticada.
+                  </div>
+
+                  <div style="font-size:18px; font-weight:600; color:#111; margin-bottom:8px;">
+                    Este mes encontrarás:
+                  </div>
+
+                  <ul style="margin:0 0 12px 18px; padding:0; font-size:13px; color:#4b5563; line-height:1.8; list-style-type:disc !important;">
+                    <li style="margin-bottom:6px;">Marcas destacadas recientemente incorporadas a Xianna.</li>
+                    <li style="margin-bottom:6px;">Looks recomendados según tu estilo.</li>
+                    <li style="margin-bottom:6px;">Selección mensual de prendas clave para actualizar tu clóset con intención.</li>
+                  </ul>
+                </td>
+
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Selección del mes (diseño unificado) -->
+        <tr>
+          <td style="padding:28px 24px 28px; background-color:#ffffff;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; max-width:592px; margin:0 auto;">
+
+              <!-- Encabezado de sección -->
+              <tr>
+                <td style="padding-bottom:16px; border-bottom:1px solid #e5e7eb;">
+                  <div style="font-size:18px; font-weight:600; color:#111; margin-bottom:8px;">
+                    Selección del mes
+                  </div>
+                  <div style="font-size:14px; color:#4b5563; line-height:1.7;">
+                    Una edición curada de marcas, piezas y combinaciones pensadas para elevar tu estilo y mantener tu clóset funcional esta temporada.
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Nueva marca destacada -->
+              <tr>
+                <td style="padding-top:18px; padding-bottom:14px;">
+                  <div style="font-size:14px; font-weight:600; color:#111827; margin-bottom:6px;">
+                    Nueva marca destacada
+                  </div>
+                  <div style="font-size:13px; color:#4b5563; line-height:1.7">
+                    {{nueva_marca}}
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Looks por estilo -->
+              <tr>
+                <td style="padding-top:6px;">
+                  <div style="font-size:14px; font-weight:600; color:#111827; margin-bottom:6px;">
+                    Looks por estilo
+                  </div>
+                  <div style="font-size:12px; color:#6b7280; line-height:1.6; margin-bottom:10px;">
+                    Inspírate con los outfits y contenidos seleccionados según tu tipo de estilo. Haz clic en cada look para ver los detalles completos.
+                  </div>
+
+                  <!-- Aquí se inyecta la galería generada (imágenes + enlaces) -->
+                  <div style="font-size:13px; color:#4b5563; line-height:1.6;">
+                    {{looks_estilo}}
+                  </div>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+
+        <!-- Piezas esenciales + imagen de accesorios (bloque verde) -->
+        <tr>
+          <td>
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+              <tr>
+                <td width="50%" style="vertical-align:top; background-color:#c6d9b8; padding:18px;">
+                  <div style="font-size:18px; font-weight:600; color:#111; margin-bottom:8px;">
+                    Piezas esenciales del mes
+                  </div>
+                  <div style="font-size:14px; color:#253028; line-height:1.7">
+                    {{piezas_esenciales}}
+                  </div>
+                </td>
+                <td width="50%" style="vertical-align:top;">
+                  <img
+                    src="https://thumbs.dreamstime.com/b/maquetaci%C3%B3n-de-ropa-elegante-para-mujeres-moda-fondo-rosa-pastel-con-una-copia-un-espacio-imitaci%C3%B3n-mesa-y-concepto-venta-184591762.jpg"
+                    alt="Accesorios"
+                    width="100%"
+                    height="180"
+                    style="
+                      display:block;
+                      width:100%;
+                      height:180px;
+                      object-fit:cover;
+                      border:0;
+                    "
+                  />
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Cierre (texto original) -->
+        <tr>
+          <td 
+            style="
+              padding:20px 24px 8px;
+              background-color:#000000; /* negro */
+            "
+          >
+            <div style="font-size:14px; color:#e5e7eb; line-height:1.6;">
+              Gracias por ser parte de Xianna. Nos encanta acompañarte a construir un estilo cada vez más auténtico y funcional.
+            </div>
+            <div style="font-size:14px; color:#ffffff; font-weight:600; margin-top:8px; padding-bottom: 15px">
+              Equipo Xianna
+            </div>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:18px 24px; background-color:#f5f5f7; text-align:center; font-size:11px; color:#777;">
+            <div>Xianna · Tu plataforma de moda personalizada</div>
+            <div style="margin-top:4px;">
+              Si no deseas recibir más emails,
+              <a href="#" style="color:#ec4899; text-decoration:underline;">haz clic aquí</a>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+  `
   },
   {
-    id: '4',
+    id: '2',
     name: 'Resumen Semanal Xianna',
     subject: 'Tu resumen semanal de Xianna',
     htmlContent: `
@@ -197,7 +275,7 @@ const EMAIL_TEMPLATES = [
     `
   },
   {
-    id: '5',
+    id: '3',
     name: 'Newsletter Semanal WhatsApp',
     subject: 'Tu newsletter semanal de Xianna',
     htmlContent: `
@@ -237,7 +315,7 @@ const EMAIL_TEMPLATES = [
     `
   },
   {
-    id: '6',
+    id: '4',
     name: 'Curaduría Semanal WhatsApp',
     subject: 'Tu curaduría semanal de Xianna',
     htmlContent: `
@@ -384,25 +462,45 @@ export default function CreateNewsletterPage() {
 
   // Generar HTML con enlaces de los items seleccionados
   const generateContentHTML = (selectedItems: Array<{ id: number; type: 'blog' | 'outfit' }>) => {
-    return selectedItems.map(({ id, type }) => {
-      // Buscar el item en el array correcto según su tipo
-      const item = type === 'blog'
-        ? blogs.find(b => b.id === id)
-        : outfits.find(o => o.id === id)
+    return selectedItems
+      .map(({ id, type }) => {
+        // Buscar el item en el array correcto según su tipo
+        const item = type === 'blog'
+          ? blogs.find(b => b.id === id)
+          : outfits.find(o => o.id === id)
 
-      if (!item) return ''
+        if (!item) return ''
 
-      const name = isBlog(item) ? item.titulo : item.nombre
-      const url = type === 'blog'
-        ? `${process.env.NEXT_PUBLIC_APP_URL || 'https://xianna.com'}/blogs/${id}`
-        : `${process.env.NEXT_PUBLIC_APP_URL || 'https://xianna.com'}/catalogo/${id}`
+        const isBlogItem = isBlog(item)
 
-      return `<div style="margin-bottom: 10px;">
-        <a href="${url}" style="color: #ec4899; text-decoration: none; font-weight: 500;">
-          ${name}
-        </a>
-      </div>`
-    }).join('')
+        const name = isBlogItem ? item.titulo : item.nombre
+        const imageUrl = isBlogItem ? (item as Blog).image : (item as Outfit).imagen
+
+        const url =
+          type === 'blog'
+            ? `${process.env.NEXT_PUBLIC_APP_URL || 'https://xianna.com'}/blogs/${id}`
+            : `${process.env.NEXT_PUBLIC_APP_URL || 'https://xianna.com'}/catalogo/${id}`
+
+        return `
+          <div style="display:flex; align-items:flex-start; gap:12px; margin-bottom:12px;">
+            ${
+              imageUrl
+                ? `<img 
+                    src="${imageUrl}" 
+                    alt="${name}" 
+                    style="width:72px; height:72px; object-fit:cover; border-radius:6px; border:1px solid #eee;"
+                  />`
+                : ''
+            }
+            <div>
+              <a href="${url}" style="color:#ec4899; text-decoration:none; font-weight:500;">
+                ${name}
+              </a>
+            </div>
+          </div>
+        `
+      })
+      .join('')
   }
 
   const handleNext = () => {
@@ -412,28 +510,28 @@ export default function CreateNewsletterPage() {
         return
       }
       // Validar campos personalizables para la plantilla "Edición Mensual Xianna"
-      if (formData.template_usado === '3') {
+      if (formData.template_usado === '1') {
         if (!formData.nueva_marca || !formData.looks_estilo || formData.looks_estilo.length === 0 || !formData.piezas_esenciales) {
           toast.error('Por favor completa todos los campos personalizables de la edición mensual y selecciona al menos un blog u outfit')
           return
         }
       }
       // Validar campo personalizable para la plantilla "Resumen Semanal Xianna"
-      if (formData.template_usado === '4') {
+      if (formData.template_usado === '2') {
         if (!formData.looks_semanal || formData.looks_semanal.length === 0) {
           toast.error('Por favor selecciona al menos un blog u outfit para el resumen semanal')
           return
         }
       }
       // Validar campos personalizables para la plantilla "Newsletter Semanal WhatsApp"
-      if (formData.template_usado === '5') {
+      if (formData.template_usado === '3') {
         if (!formData.titulo_tema || !formData.enlace_recurso || !formData.cta_dia) {
           toast.error('Por favor completa todos los campos personalizables del newsletter de WhatsApp')
           return
         }
       }
       // Validar campos personalizables para la plantilla "Curaduría Semanal WhatsApp"
-      if (formData.template_usado === '6') {
+      if (formData.template_usado === '4') {
         if (!formData.marca_highlight || !formData.recomendaciones_estilo) {
           toast.error('Por favor completa todos los campos personalizables de la curaduría de WhatsApp')
           return
@@ -487,25 +585,25 @@ export default function CreateNewsletterPage() {
       if (selectedTemplate && selectedUsersData.length > 0) {
         // Reemplazar placeholders personalizables para las plantillas
         let htmlContent = selectedTemplate.htmlContent
-        if (formData.template_usado === '3') {
+        if (formData.template_usado === '1') {
           // Plantilla mensual de correo
           const looksHTML = generateContentHTML(formData.looks_estilo || [])
           htmlContent = htmlContent
             .replace(/\{\{nueva_marca\}\}/g, formData.nueva_marca || '')
             .replace(/\{\{looks_estilo\}\}/g, looksHTML)
             .replace(/\{\{piezas_esenciales\}\}/g, formData.piezas_esenciales || '')
-        } else if (formData.template_usado === '4') {
+        } else if (formData.template_usado === '2') {
           // Plantilla semanal de correo
           const looksHTML = generateContentHTML(formData.looks_semanal || [])
           htmlContent = htmlContent
             .replace(/\{\{looks_semanal\}\}/g, looksHTML)
-        } else if (formData.template_usado === '5') {
+        } else if (formData.template_usado === '3') {
           // Plantilla newsletter de WhatsApp
           htmlContent = htmlContent
             .replace(/\{\{titulo_tema\}\}/g, formData.titulo_tema || '')
             .replace(/\{\{enlace_recurso\}\}/g, formData.enlace_recurso || '')
             .replace(/\{\{cta_dia\}\}/g, formData.cta_dia || '')
-        } else if (formData.template_usado === '6') {
+        } else if (formData.template_usado === '4') {
           // Plantilla curaduría de WhatsApp
           htmlContent = htmlContent
             .replace(/\{\{marca_highlight\}\}/g, formData.marca_highlight || '')
@@ -619,9 +717,9 @@ export default function CreateNewsletterPage() {
                   const newCanal = value as 'correo' | 'whatsapp'
                   setFormData(prev => {
                     // Si cambia a WhatsApp y tiene seleccionada plantilla de correo (3 o 4), resetear
-                    const shouldResetFromCorreo = newCanal === 'whatsapp' && (prev.template_usado === '3' || prev.template_usado === '4')
+                    const shouldResetFromCorreo = newCanal === 'whatsapp' && (prev.template_usado === '1' || prev.template_usado === '2')
                     // Si cambia a correo y tiene seleccionada plantilla de WhatsApp (5 o 6), resetear
-                    const shouldResetFromWhatsApp = newCanal === 'correo' && (prev.template_usado === '5' || prev.template_usado === '6')
+                    const shouldResetFromWhatsApp = newCanal === 'correo' && (prev.template_usado === '3' || prev.template_usado === '4')
                     const shouldResetTemplate = shouldResetFromCorreo || shouldResetFromWhatsApp
 
                     return {
@@ -664,11 +762,11 @@ export default function CreateNewsletterPage() {
                 <SelectContent>
                   {EMAIL_TEMPLATES.filter((template) => {
                     // Plantillas 3 y 4 (Mensual y Semanal de correo) solo para correo
-                    if (template.id === '3' || template.id === '4') {
+                    if (template.id === '1' || template.id === '2') {
                       return formData.canal === 'correo'
                     }
                     // Plantillas 5 y 6 (Newsletter y Curaduría WhatsApp) solo para WhatsApp
-                    if (template.id === '5' || template.id === '6') {
+                    if (template.id === '3' || template.id === '4') {
                       return formData.canal === 'whatsapp'
                     }
                     // Plantillas 1 y 2 disponibles para ambos canales
@@ -683,7 +781,7 @@ export default function CreateNewsletterPage() {
             </div>
 
             {/* Campos personalizables para la plantilla "Edición Mensual Xianna" */}
-            {formData.template_usado === '3' && (
+            {formData.template_usado === '1' && (
               <>
                 <div className="border-t pt-4 mt-4">
                   <h3 className="text-lg font-semibold mb-4 text-gray-900">
@@ -791,7 +889,7 @@ export default function CreateNewsletterPage() {
             )}
 
             {/* Campo personalizable para la plantilla "Resumen Semanal Xianna" */}
-            {formData.template_usado === '4' && (
+            {formData.template_usado === '2' && (
               <>
                 <div className="border-t pt-4 mt-4">
                   <h3 className="text-lg font-semibold mb-4 text-gray-900">
@@ -877,7 +975,7 @@ export default function CreateNewsletterPage() {
             )}
 
             {/* Campos personalizables para la plantilla "Newsletter Semanal WhatsApp" */}
-            {formData.template_usado === '5' && (
+            {formData.template_usado === '3' && (
               <>
                 <div className="border-t pt-4 mt-4">
                   <h3 className="text-lg font-semibold mb-4 text-gray-900">
@@ -921,7 +1019,7 @@ export default function CreateNewsletterPage() {
             )}
 
             {/* Campos personalizables para la plantilla "Curaduría Semanal WhatsApp" */}
-            {formData.template_usado === '6' && (
+            {formData.template_usado === '4' && (
               <>
                 <div className="border-t pt-4 mt-4">
                   <h3 className="text-lg font-semibold mb-4 text-gray-900">
@@ -1286,7 +1384,7 @@ export default function CreateNewsletterPage() {
                     let htmlContent = selectedTemplate.htmlContent
 
                     // Reemplazar placeholders según la plantilla
-                    if (formData.template_usado === '3') {
+                    if (formData.template_usado === '1') {
                       const looksHTML = formData.looks_estilo && formData.looks_estilo.length > 0
                         ? generateContentHTML(formData.looks_estilo)
                         : '[Selecciona blogs u outfits]'
@@ -1294,18 +1392,18 @@ export default function CreateNewsletterPage() {
                         .replace(/\{\{nueva_marca\}\}/g, formData.nueva_marca || '[Nueva marca + highlight]')
                         .replace(/\{\{looks_estilo\}\}/g, looksHTML)
                         .replace(/\{\{piezas_esenciales\}\}/g, formData.piezas_esenciales || '[Piezas esenciales del mes]')
-                    } else if (formData.template_usado === '4') {
+                    } else if (formData.template_usado === '2') {
                       const looksHTML = formData.looks_semanal && formData.looks_semanal.length > 0
                         ? generateContentHTML(formData.looks_semanal)
                         : '[Selecciona blogs u outfits]'
                       htmlContent = htmlContent
                         .replace(/\{\{looks_semanal\}\}/g, looksHTML)
-                    } else if (formData.template_usado === '5') {
+                    } else if (formData.template_usado === '3') {
                       htmlContent = htmlContent
                         .replace(/\{\{titulo_tema\}\}/g, formData.titulo_tema || '[Título o tema]')
                         .replace(/\{\{enlace_recurso\}\}/g, formData.enlace_recurso || '[Enlace o recurso]')
                         .replace(/\{\{cta_dia\}\}/g, formData.cta_dia || '[CTA del día]')
-                    } else if (formData.template_usado === '6') {
+                    } else if (formData.template_usado === '4') {
                       htmlContent = htmlContent
                         .replace(/\{\{marca_highlight\}\}/g, formData.marca_highlight || '[Nueva marca + breve highlight]')
                         .replace(/\{\{recomendaciones_estilo\}\}/g, formData.recomendaciones_estilo || '[Recomendaciones por estilo + enlaces]')
