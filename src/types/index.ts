@@ -423,8 +423,22 @@ export interface NewsletterFormData {
   nombre: string
   asunto: string
   template_usado: string
+  canal?: 'correo' | 'whatsapp'
   filtros_aplicados: NewsletterFilters
   selectedEmails: string[]
+  // Campos personalizables para la plantilla mensual
+  nueva_marca?: string
+  looks_estilo?: string
+  piezas_esenciales?: string
+  // Campo personalizable para la plantilla semanal
+  looks_semanal?: string
+  // Campos personalizables para la plantilla WhatsApp semanal
+  titulo_tema?: string
+  enlace_recurso?: string
+  cta_dia?: string
+  // Campos personalizables para la plantilla WhatsApp curaduría
+  marca_highlight?: string
+  recomendaciones_estilo?: string
 }
 
 export interface NewsletterFilters {
