@@ -1,5 +1,5 @@
 'use client'
-
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useRouter } from 'next/navigation'
@@ -739,7 +739,14 @@ export default function CreateNewsletterPage() {
                           const isSelected = formData.looks_estilo?.some(
                             selected => selected.id === item.id && selected.type === itemType
                           ) || false
-                          const itemName = isBlog(item) ? item.titulo : item.nombre
+
+                          const isBlogItem = isBlog(item)
+                          const blogItem = isBlogItem ? (item as Blog) : null
+                          const outfitItem = !isBlogItem ? (item as Outfit) : null
+
+                          const name = isBlogItem ? blogItem!.titulo : outfitItem!.nombre
+                          const thumbnail = isBlogItem ? blogItem?.image : outfitItem?.imagen
+
                           return (
                             <Badge
                               key={`${itemType}-${item.id}`}
@@ -747,7 +754,21 @@ export default function CreateNewsletterPage() {
                               className="cursor-pointer justify-start text-left p-2 h-auto"
                               onClick={() => handleLooksEstiloToggle(item.id, itemType)}
                             >
-                              {itemName}
+                              <div className="flex items-center gap-2">
+                                {thumbnail && (
+                                  <div className="relative w-8 h-8 rounded overflow-hidden flex-shrink-0">
+                                    <Image
+                                      src={thumbnail}
+                                      alt={name}
+                                      fill
+                                      className="object-cover"
+                                    />
+                                  </div>
+                                )}
+                                <span className="line-clamp-2 text-left text-xs sm:text-sm">
+                                  {name}
+                                </span>
+                              </div>
                             </Badge>
                           )
                         })}
@@ -815,7 +836,14 @@ export default function CreateNewsletterPage() {
                           const isSelected = formData.looks_semanal?.some(
                             selected => selected.id === item.id && selected.type === itemType
                           ) || false
-                          const itemName = isBlog(item) ? item.titulo : item.nombre
+
+                          const isBlogItem = isBlog(item)
+                          const blogItem = isBlogItem ? (item as Blog) : null
+                          const outfitItem = !isBlogItem ? (item as Outfit) : null
+
+                          const name = isBlogItem ? blogItem!.titulo : outfitItem!.nombre
+                          const thumbnail = isBlogItem ? blogItem?.image : outfitItem?.imagen
+
                           return (
                             <Badge
                               key={`${itemType}-${item.id}`}
@@ -823,7 +851,21 @@ export default function CreateNewsletterPage() {
                               className="cursor-pointer justify-start text-left p-2 h-auto"
                               onClick={() => handleLooksSemanalToggle(item.id, itemType)}
                             >
-                              {itemName}
+                              <div className="flex items-center gap-2">
+                                {thumbnail && (
+                                  <div className="relative w-8 h-8 rounded overflow-hidden flex-shrink-0">
+                                    <Image
+                                      src={thumbnail}
+                                      alt={name}
+                                      fill
+                                      className="object-cover"
+                                    />
+                                  </div>
+                                )}
+                                <span className="line-clamp-2 text-left text-xs sm:text-sm">
+                                  {name}
+                                </span>
+                              </div>
                             </Badge>
                           )
                         })}
