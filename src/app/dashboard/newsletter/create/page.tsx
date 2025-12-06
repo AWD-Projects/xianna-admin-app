@@ -236,43 +236,184 @@ const EMAIL_TEMPLATES = [
   },
   {
     id: '2',
-    name: 'Resumen Semanal Xianna',
-    subject: 'Tu resumen semanal de Xianna',
-    htmlContent: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <header style="background: linear-gradient(135deg, #ec4899 0%, #be185d 100%); color: white; padding: 40px 20px; text-align: center;">
-          <h1 style="margin: 0; font-size: 28px;">Hola 🩷</h1>
-        </header>
-        <main style="padding: 40px 20px;">
-          <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-            Este es tu resumen semanal de Xianna: una selección de outfits y recomendaciones pensadas para elevar tus looks al máximo y con propósito.
-          </p>
+name: 'Resumen Semanal Xianna',
+subject: 'Tu resumen semanal de Xianna',
+htmlContent: `
+  <div style="background-color:#f7f4f5; padding:24px 0; font-family:'Helvetica Neue', Arial, sans-serif;">
+    <table align="center" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px; margin:0 auto; background-color:#ffffff; border-collapse:collapse;">
 
-          <h2 style="color: #1f2937; font-size: 20px; margin-bottom: 15px; margin-top: 30px;">Esta semana destacamos:</h2>
-          <ul style="color: #4b5563; line-height: 1.8; margin-bottom: 30px;">
-            <li>Looks sugeridos según tu estilo.</li>
-            <li>Piezas funcionales para mejorar tu edición diaria.</li>
-          </ul>
+      <!-- Franja superior tipo navbar -->
+      <tr>
+        <td style="padding:10px 24px; background-color:#fdf5f2;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+            <tr>
+              <td style="font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#111827; font-weight:600;">
+                Xianna · Resumen semanal
+              </td>
+              <td style="text-align:right; font-size:11px; color:#6b7280;">
+                ACCESORIOS &nbsp;·&nbsp; PRENDAS &nbsp;·&nbsp; NUEVAS LLEGADAS
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
 
-          <h2 style="color: #1f2937; font-size: 24px; margin-bottom: 20px; margin-top: 40px;">Edición de la semana</h2>
+      <!-- Hero rosa grande -->
+      <tr>
+        <td style="padding:26px 24px 22px; background-color:#f8c8d8; border-bottom:1px solid #e5e7eb;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; text-align:center;">
+            <tr>
+              <td>
+                <div style="font-size:12px; letter-spacing:0.20em; text-transform:uppercase; color:#111827; margin-bottom:6px;">
+                  Xianna
+                </div>
+                <div style="font-size:30px; letter-spacing:0.18em; text-transform:uppercase; color:#111827; font-weight:500; line-height:1.1;">
+                  Resumen semanal
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
 
-          <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p style="color: #4b5563; margin-bottom: 0; white-space: pre-line;">{{looks_semanal}}</p>
-          </div>
+      <!-- Cuerpo principal: foto izquierda + texto derecha -->
+      <tr>
+        <td style="padding:0;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+            <tr>
+              <!-- Columna foto (verde) -->
+              <td width="52%" valign="top"
+                  background="https://phantom-elmundo.unidadeditorial.es/e0c65b96ae9aa1c7b68e0cc57f8be70c/resize/640/assets/multimedia/imagenes/2022/03/21/16478765321292.jpg"
+                  style="
+                    background-size:cover;
+                    background-position:center;
+                    background-repeat:no-repeat;
+                  ">
+                <!-- spacer para Outlook -->
+                <div style="height:260px; line-height:0; font-size:0;">&nbsp;</div>
+              </td>
 
-          <p style="color: #4b5563; font-size: 16px; margin-top: 40px;">
+              <!-- Columna texto -->
+              <td width="48%" valign="top" style="vertical-align:top; padding:20px 22px; background-color:#fefcfb;">
+                <!-- Intro (mismo texto) -->
+                <p style="color:#4b5563; font-size:14px; line-height:1.7; margin:0 0 16px 0;">
+                  Este es tu resumen semanal de Xianna: una selección de outfits y recomendaciones pensadas para elevar tus looks al máximo y con propósito.
+                </p>
+
+                <!-- Esta semana destacamos (mismo contenido en formato tarjeta) -->
+                <h2 style="color:#111827; font-size:18px; margin:0 0 10px 0;">
+                  Esta semana destacamos:
+                </h2>
+                <ul style="color:#4b5563; line-height:1.8; margin:0 0 0 18px; padding:0; font-size:13px;">
+                  <li>Looks sugeridos según tu estilo.</li>
+                  <li>Piezas funcionales para mejorar tu edición diaria.</li>
+                </ul>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- Sección tipo “Discover This Week” en verde -->
+      <tr>
+        <td style="padding:0;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+            <tr>
+              <!-- Bloque verde con texto y edición -->
+              <tr>
+                <td style="background-color:#f7f4f5;">
+
+                  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; max-width:640px; margin:0 auto;">
+                    <tr>
+
+                      <!-- Tarjeta con título + looks -->
+                      <td width="65%" valign="top" style="background-color:#ffffff; padding:18px 18px 16px; border:1px solid #e5e7eb;">
+                        <div style="font-size:18px; color:#111827; font-weight:600; margin-bottom:10px;">
+                          Edición de la semana
+                        </div>
+
+                        <div style="font-size:13px; color:#4b5563; line-height:1.7;">
+                          <div style="max-width:360px;">
+                            {{looks_semanal}}
+                          </div>
+                        </div>
+                      </td>
+
+                      <!-- Imagen editorial derecha -->
+                      <td width="31%" valign="top" style="background-color:#d6e2c3;">
+                        <img
+                          src="https://i.etsystatic.com/15377516/r/il/398459/2229713449/il_570xN.2229713449_qz88.jpg"
+                          alt="Edición de la semana"
+                          width="100%"
+                          height="220"
+                          style="
+                            display:block;
+                            width:100%;
+                            height:220px;
+                            object-fit:cover;
+                            border:0;
+                          "
+                        />
+                      </td>
+
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Imagen accesorios abajo derecha -->
+              <td width="40%" valign="top">
+                <img
+                  src="https://hips.hearstapps.com/hmg-prod/images/alba-garavito-torre-wears-a-white-with-green-tree-leaf-news-photo-1624542973.jpg?crop=0.88889xw:1xh;center,top&resize=1200:*"
+                  alt="Accesorios"
+                  width="100%"
+                  height="220"
+                  style="
+                    display:block;
+                    width:100%;
+                    height:220px;
+                    object-fit:cover;
+                    border:0;
+                  "
+                />
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- Cierre negro -->
+      <tr>
+        <td 
+          style="
+            padding:20px 24px 10px;
+            background-color:#000000;
+          "
+        >
+          <p style="font-size:14px; color:#e5e7eb; line-height:1.6; margin:0 0 6px 0;">
             Gracias por acompañarnos.
           </p>
-          <p style="color: #4b5563; font-size: 16px; font-weight: 600;">
+          <p style="font-size:14px; color:#ffffff; font-weight:600; margin:0; padding-bottom:14px;">
             Equipo Xianna
           </p>
-        </main>
-        <footer style="background: #f3f4f6; padding: 20px; text-align: center; color: #6b7280; font-size: 14px;">
-          <p>Xianna - Tu plataforma de moda personalizada</p>
-          <p>Si no deseas recibir más emails, <a href="#" style="color: #ec4899;">haz clic aquí</a></p>
-        </footer>
-      </div>
-    `
+        </td>
+      </tr>
+
+      <!-- Footer -->
+      <tr>
+        <td style="padding:18px 24px; background-color:#f5f5f7; text-align:center; font-size:11px; color:#777;">
+          <div>Xianna - Tu plataforma de moda personalizada</div>
+          <div style="margin-top:4px;">
+            Si no deseas recibir más emails,
+            <a href="#" style="color:#ec4899; text-decoration:underline;">haz clic aquí</a>
+          </div>
+        </td>
+      </tr>
+
+    </table>
+  </div>
+`
+
   },
   {
     id: '3',
