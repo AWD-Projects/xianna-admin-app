@@ -650,8 +650,8 @@ export default function CreateNewsletterPage() {
 
         const url =
           type === 'blog'
-            ? `${process.env.NEXT_PUBLIC_APP_URL || 'https://xianna.com'}/blogs/${id}`
-            : `${process.env.NEXT_PUBLIC_APP_URL || 'https://xianna.com'}/catalogo/${id}`
+            ? `${process.env.NEXT_PUBLIC_APP_URL || 'https://xianna.com.mx'}/blogs/${id}`
+            : `${process.env.NEXT_PUBLIC_APP_URL || 'https://xianna.com.mx'}/catalogo/${id}`
 
         return `
           <div style="display:flex; align-items:flex-start; gap:12px; margin-bottom:12px;">
