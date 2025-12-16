@@ -65,3 +65,32 @@ export function generateWhatsAppLink(phoneNumber: string | null | undefined, mes
 
   return `https://wa.me/${cleanPhone}?text=${encodedMessage}`
 }
+
+/**
+ * Gets the background image URL from Supabase Storage based on user's style type
+ * @param tipoEstilo - The user's style type (1-7)
+ * @returns The public URL of the style background image or null if not available
+ */
+export function getStyleBackgroundImage(tipoEstilo: number | null | undefined): string | null {
+  if (!tipoEstilo) return null
+
+  // Mapping between style types and image filenames in the "Estilos" bucket
+  const styleImageMap: { [key: number]: string } = {
+    1: 'Estilo Creativo.jpg',           // Casual → Natural
+    2: 'Estilo tradicional ejecutivo.jpg', // Elegante → Tradicional Ejecutivo
+    5: 'Estilo Minimalista.jpg',       // Minimalista → Minimalista
+  }
+
+  const imageName = styleImageMap[tipoEstilo]
+  if (!imageName) return null
+
+  // Get Supabase URL from environment variable
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!supabaseUrl) {
+    console.error('NEXT_PUBLIC_SUPABASE_URL is not defined')
+    return null
+  }
+
+  // Generate public URL for the image in the "Estilos" bucket
+  return `${supabaseUrl}/storage/v1/object/public/Estilos/${encodeURIComponent(imageName)}`
+}
