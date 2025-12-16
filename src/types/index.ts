@@ -454,6 +454,7 @@ export interface SelectedUser {
   id: number
   nombre: string
   correo: string
+  telefono?: string
   estado: string
   genero: string
   edad: number

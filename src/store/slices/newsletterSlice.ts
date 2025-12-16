@@ -64,7 +64,7 @@ export const fetchUsersForNewsletter = createAsyncThunk(
     const supabase = createClient()
     const { data, error } = await supabase
       .from('user_details')
-      .select('id, nombre, correo, estado, genero, edad, tipo_estilo, ocupacion')
+      .select('id, nombre, correo, telefono, estado, genero, edad, tipo_estilo, ocupacion, telefono')
 
     if (error) throw error
     return data.map(user => ({ ...user, selected: false }))
@@ -73,7 +73,7 @@ export const fetchUsersForNewsletter = createAsyncThunk(
 
 export const sendNewsletterCampaign = createAsyncThunk(
   'newsletter/sendCampaign',
-  async ({ campaignId, users, template }: { 
+  async ({ campaignId, users, template }: {
     campaignId: number
     users: SelectedUser[]
     template: { subject: string; htmlContent: string }
@@ -92,6 +92,40 @@ export const sendNewsletterCampaign = createAsyncThunk(
 
     if (!response.ok) {
       let errorMessage = 'Failed to send newsletter'
+      try {
+        const payload = await response.json()
+        errorMessage = payload?.message || payload?.details || payload?.error || errorMessage
+      } catch {
+        // ignore parse errors
+      }
+      throw new Error(errorMessage)
+    }
+
+    return response.json()
+  }
+)
+
+export const sendWhatsAppCampaign = createAsyncThunk(
+  'newsletter/sendWhatsAppCampaign',
+  async ({ campaignId, users, template }: {
+    campaignId: number
+    users: SelectedUser[]
+    template: { subject: string; htmlContent: string }
+  }) => {
+    const response = await fetch('/api/newsletter/send-whatsapp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        campaignId,
+        users,
+        template
+      }),
+    })
+
+    if (!response.ok) {
+      let errorMessage = 'Failed to generate WhatsApp links'
       try {
         const payload = await response.json()
         errorMessage = payload?.message || payload?.details || payload?.error || errorMessage
@@ -185,6 +219,18 @@ const newsletterSlice = createSlice({
       .addCase(sendNewsletterCampaign.rejected, (state, action) => {
         state.loading = false
         state.error = action.error.message || 'Failed to send newsletter'
+      })
+      // Send WhatsApp campaign
+      .addCase(sendWhatsAppCampaign.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(sendWhatsAppCampaign.fulfilled, (state) => {
+        state.loading = false
+      })
+      .addCase(sendWhatsAppCampaign.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.error.message || 'Failed to generate WhatsApp links'
       })
   }
 })

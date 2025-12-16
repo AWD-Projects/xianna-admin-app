@@ -17,7 +17,8 @@ import {
   toggleUserSelection,
   selectAllUsers,
   clearSelectedUsers,
-  sendNewsletterCampaign
+  sendNewsletterCampaign,
+  sendWhatsAppCampaign
 } from '@/store/slices/newsletterSlice'
 import { fetchBlogs } from '@/store/slices/blogSlice'
 import { fetchOutfits } from '@/store/slices/outfitSlice'
@@ -26,6 +27,8 @@ import type { NewsletterFormData, NewsletterFilters, SelectedUser, Blog, Outfit 
 import { Send, Users, Filter, CheckSquare, Square, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { htmlToPlainText } from '@/lib/utils/htmlToText'
+import { WhatsAppLinksModal } from '@/components/WhatsAppLinksModal'
 
 const EMAIL_TEMPLATES = [
   {
@@ -521,6 +524,8 @@ export default function CreateNewsletterPage() {
   const [step, setStep] = useState<'details' | 'users' | 'preview'>('details')
   const [contentTypeMensual, setContentTypeMensual] = useState<'blogs' | 'outfits'>('outfits')
   const [contentTypeSemanal, setContentTypeSemanal] = useState<'blogs' | 'outfits'>('outfits')
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false)
+  const [whatsappLinks, setWhatsappLinks] = useState<any[]>([])
 
   useEffect(() => {
     // Fetch campaigns to calculate email usage
@@ -684,13 +689,14 @@ export default function CreateNewsletterPage() {
         toast.error('Por favor selecciona al menos un usuario')
         return
       }
-      if (wouldExceedLimit) {
+      // Only check email limit for email campaigns
+      if (formData.canal === 'correo' && wouldExceedLimit) {
         toast.error(`No puedes seleccionar ${selectedEmailsCount} usuarios. Solo tienes ${remainingEmails} emails disponibles.`)
         return
       }
       // Store the applied filters and selected emails when moving to preview
-      setFormData(prev => ({ 
-        ...prev, 
+      setFormData(prev => ({
+        ...prev,
         filtros_aplicados: filters,
         selectedEmails: selectedEmails
       }))
@@ -705,8 +711,8 @@ export default function CreateNewsletterPage() {
 
   const handleSubmit = async () => {
     try {
-      // Final check before sending
-      if (wouldExceedLimit) {
+      // Final check before sending (only for email campaigns)
+      if (formData.canal === 'correo' && wouldExceedLimit) {
         toast.error(`No se puede enviar la campaña. Excede el límite de emails por ${selectedEmailsCount - remainingEmails} usuarios.`)
         return
       }
@@ -716,9 +722,9 @@ export default function CreateNewsletterPage() {
         ...formData,
         filtros_aplicados: filters
       }
-      
+
       const campaign = await dispatch(createCampaign(campaignDataWithFilters)).unwrap()
-      
+
       // Send the newsletter with user data for personalization
       const selectedTemplate = EMAIL_TEMPLATES.find(t => t.id === formData.template_usado)
       const selectedUsersData = selectedUsers.filter(user => user.selected)
@@ -751,18 +757,77 @@ export default function CreateNewsletterPage() {
             .replace(/\{\{recomendaciones_estilo\}\}/g, formData.recomendaciones_estilo || '')
         }
 
-        await dispatch(sendNewsletterCampaign({
-          campaignId: campaign.id,
-          users: selectedUsersData,
-          template: {
-            subject: selectedTemplate.subject,
-            htmlContent: htmlContent
+        // Check if this is a WhatsApp campaign
+        if (formData.canal === 'whatsapp') {
+          // For WhatsApp, generate wa.me links
+          const result = await dispatch(sendWhatsAppCampaign({
+            campaignId: campaign.id,
+            users: selectedUsersData,
+            template: {
+              subject: selectedTemplate.subject,
+              htmlContent: htmlContent
+            }
+          })).unwrap()
+
+          console.log('WhatsApp campaign result:', result)
+
+          // Open WhatsApp links in new tabs
+          if (result.whatsappLinks && result.whatsappLinks.length > 0) {
+            console.log(`Opening ${result.whatsappLinks.length} WhatsApp links...`)
+
+            // Save links to state for modal
+            setWhatsappLinks(result.whatsappLinks)
+
+            // Show modal immediately
+            setShowWhatsAppModal(true)
+
+            toast.success(`Se generaron ${result.whatsappLinks.length} enlaces de WhatsApp.`, {
+              duration: 5000,
+              description: 'Haz clic en cada enlace para abrir WhatsApp'
+            })
+
+            // Show warnings for users without phone or failed users
+            const warningMessages = []
+            if (result.usersWithoutPhone && result.usersWithoutPhone.length > 0) {
+              warningMessages.push(`${result.usersWithoutPhone.length} usuarios sin teléfono`)
+            }
+            if (result.failedUsers && result.failedUsers.length > 0) {
+              warningMessages.push(`${result.failedUsers.length} usuarios con errores`)
+            }
+            if (warningMessages.length > 0) {
+              toast.warning(warningMessages.join(', '))
+            }
+
+            // Store the links in localStorage as backup
+            localStorage.setItem('whatsapp_links_backup', JSON.stringify(result.whatsappLinks))
+            console.log('Enlaces guardados en localStorage como respaldo')
+          } else {
+            toast.error('No se pudieron generar enlaces de WhatsApp. Verifica que los usuarios tengan teléfonos registrados.')
           }
-        })).unwrap()
+        } else {
+          // For email, send via SendGrid
+          await dispatch(sendNewsletterCampaign({
+            campaignId: campaign.id,
+            users: selectedUsersData,
+            template: {
+              subject: selectedTemplate.subject,
+              htmlContent: htmlContent
+            }
+          })).unwrap()
+        }
       }
-      
-      toast.success('Campaña creada y enviada exitosamente')
-      router.push('/dashboard/newsletter')
+
+      // Only show success toast for email campaigns
+      // For WhatsApp, the success message is shown when links are generated
+      if (formData.canal === 'correo') {
+        toast.success('Campaña creada y enviada exitosamente')
+        // Redirect after a short delay
+        setTimeout(() => {
+          router.push('/dashboard/newsletter')
+        }, 1000)
+      }
+      // For WhatsApp, don't redirect so user can use the modal
+      // User will manually close the modal or navigate away when done
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error al crear la campaña'
       toast.error(message)
@@ -1200,8 +1265,8 @@ export default function CreateNewsletterPage() {
 
       {step === 'users' && (
         <div className="space-y-6">
-          {/* Email Limit Warning */}
-          {isNearLimit && (
+          {/* Email Limit Warning - Only show for email campaigns */}
+          {formData.canal === 'correo' && isNearLimit && (
             <div className={`rounded-lg p-4 border ${wouldExceedLimit ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'}`}>
               <div className="flex items-center gap-3">
                 <AlertTriangle className={`h-5 w-5 ${wouldExceedLimit ? 'text-red-600' : 'text-yellow-600'}`} />
@@ -1210,7 +1275,7 @@ export default function CreateNewsletterPage() {
                     {wouldExceedLimit ? 'Límite de emails excedido' : 'Acercándose al límite de emails'}
                   </h3>
                   <p className={`text-sm mt-1 ${wouldExceedLimit ? 'text-red-600' : 'text-yellow-600'}`}>
-                    {wouldExceedLimit 
+                    {wouldExceedLimit
                       ? `Has seleccionado ${selectedEmailsCount} usuarios, pero solo tienes ${remainingEmails} emails disponibles de tu límite de ${emailLimit.toLocaleString()}.`
                       : `Has usado ${totalEmailsSent} de ${emailLimit.toLocaleString()} emails disponibles (${remainingEmails} restantes).`
                     }
@@ -1220,6 +1285,22 @@ export default function CreateNewsletterPage() {
                       Por favor, reduce la selección a máximo {remainingEmails} usuarios.
                     </p>
                   )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* WhatsApp Info - Only show for WhatsApp campaigns */}
+          {formData.canal === 'whatsapp' && (
+            <div className="rounded-lg p-4 border bg-green-50 border-green-200">
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <h3 className="font-medium text-green-800">
+                    Campaña de WhatsApp
+                  </h3>
+                  <p className="text-sm mt-1 text-green-600">
+                    Se generarán enlaces de WhatsApp para {selectedEmailsCount} usuarios seleccionados. Los enlaces se abrirán automáticamente en nuevas pestañas.
+                  </p>
                 </div>
               </div>
             </div>
@@ -1464,9 +1545,16 @@ export default function CreateNewsletterPage() {
               <div>
                 <Label className="text-sm font-medium text-gray-500">Usuarios seleccionados</Label>
                 <p className="text-lg">{selectedEmails.length}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {remainingEmails - selectedEmailsCount} emails restantes después del envío
-                </p>
+                {formData.canal === 'correo' && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {remainingEmails - selectedEmailsCount} emails restantes después del envío
+                  </p>
+                )}
+                {formData.canal === 'whatsapp' && (
+                  <p className="text-xs text-green-600 mt-1">
+                    Se generarán {selectedEmails.length} enlaces de WhatsApp
+                  </p>
+                )}
               </div>
             </div>
             
@@ -1514,13 +1602,15 @@ export default function CreateNewsletterPage() {
 
             {/* Vista previa de la plantilla */}
             <div className="border-t pt-4 mt-4">
-              <Label className="text-sm font-medium text-gray-500 mb-3 block">Vista previa de la plantilla</Label>
-              <div
-                className="border rounded-lg p-4 bg-white max-h-96 overflow-y-auto"
-                dangerouslySetInnerHTML={{
-                  __html: (() => {
+              <Label className="text-sm font-medium text-gray-500 mb-3 block">
+                Vista previa de la plantilla {formData.canal === 'whatsapp' && '(texto plano para WhatsApp)'}
+              </Label>
+              {formData.canal === 'whatsapp' ? (
+                // Vista previa en texto plano para WhatsApp
+                <div className="border rounded-lg p-4 bg-white max-h-96 overflow-y-auto whitespace-pre-wrap font-mono text-sm">
+                  {(() => {
                     const selectedTemplate = EMAIL_TEMPLATES.find(t => t.id === formData.template_usado)
-                    if (!selectedTemplate) return '<p>Selecciona una plantilla para ver la vista previa</p>'
+                    if (!selectedTemplate) return 'Selecciona una plantilla para ver la vista previa'
 
                     let htmlContent = selectedTemplate.htmlContent
 
@@ -1557,10 +1647,62 @@ export default function CreateNewsletterPage() {
                       .replace(/\{\{estado\}\}/g, 'Ciudad de México')
                       .replace(/\{\{tipo_cuerpo\}\}/g, 'Rectángulo')
 
-                    return htmlContent
-                  })()
-                }}
-              />
+                    // Convertir HTML a texto plano para WhatsApp
+                    const plainText = htmlToPlainText(htmlContent)
+                    const fullMessage = `*${selectedTemplate.subject}*\n\n${plainText}`
+
+                    return fullMessage
+                  })()}
+                </div>
+              ) : (
+                // Vista previa en HTML para email
+                <div
+                  className="border rounded-lg p-4 bg-white max-h-96 overflow-y-auto"
+                  dangerouslySetInnerHTML={{
+                    __html: (() => {
+                      const selectedTemplate = EMAIL_TEMPLATES.find(t => t.id === formData.template_usado)
+                      if (!selectedTemplate) return '<p>Selecciona una plantilla para ver la vista previa</p>'
+
+                      let htmlContent = selectedTemplate.htmlContent
+
+                      // Reemplazar placeholders según la plantilla
+                      if (formData.template_usado === '1') {
+                        const looksHTML = formData.looks_estilo && formData.looks_estilo.length > 0
+                          ? generateContentHTML(formData.looks_estilo)
+                          : '[Selecciona blogs u outfits]'
+                        htmlContent = htmlContent
+                          .replace(/\{\{nueva_marca\}\}/g, formData.nueva_marca || '[Nueva marca + highlight]')
+                          .replace(/\{\{looks_estilo\}\}/g, looksHTML)
+                          .replace(/\{\{piezas_esenciales\}\}/g, formData.piezas_esenciales || '[Piezas esenciales del mes]')
+                      } else if (formData.template_usado === '2') {
+                        const looksHTML = formData.looks_semanal && formData.looks_semanal.length > 0
+                          ? generateContentHTML(formData.looks_semanal)
+                          : '[Selecciona blogs u outfits]'
+                        htmlContent = htmlContent
+                          .replace(/\{\{looks_semanal\}\}/g, looksHTML)
+                      } else if (formData.template_usado === '3') {
+                        htmlContent = htmlContent
+                          .replace(/\{\{titulo_tema\}\}/g, formData.titulo_tema || '[Título o tema]')
+                          .replace(/\{\{enlace_recurso\}\}/g, formData.enlace_recurso || '[Enlace o recurso]')
+                          .replace(/\{\{cta_dia\}\}/g, formData.cta_dia || '[CTA del día]')
+                      } else if (formData.template_usado === '4') {
+                        htmlContent = htmlContent
+                          .replace(/\{\{marca_highlight\}\}/g, formData.marca_highlight || '[Nueva marca + breve highlight]')
+                          .replace(/\{\{recomendaciones_estilo\}\}/g, formData.recomendaciones_estilo || '[Recomendaciones por estilo + enlaces]')
+                      }
+
+                      // Reemplazar placeholders generales con valores de ejemplo
+                      htmlContent = htmlContent
+                        .replace(/\{\{nombre\}\}/g, 'Usuario')
+                        .replace(/\{\{tipo_estilo\}\}/g, 'Casual')
+                        .replace(/\{\{estado\}\}/g, 'Ciudad de México')
+                        .replace(/\{\{tipo_cuerpo\}\}/g, 'Rectángulo')
+
+                      return htmlContent
+                    })()
+                  }}
+                />
+              )}
             </div>
 
             <div>
@@ -1602,6 +1744,13 @@ export default function CreateNewsletterPage() {
           <p className="text-red-800">{error}</p>
         </div>
       )}
+
+      {/* WhatsApp Links Modal */}
+      <WhatsAppLinksModal
+        isOpen={showWhatsAppModal}
+        onClose={() => setShowWhatsAppModal(false)}
+        links={whatsappLinks}
+      />
     </div>
   )
 }
