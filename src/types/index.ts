@@ -423,8 +423,22 @@ export interface NewsletterFormData {
   nombre: string
   asunto: string
   template_usado: string
+  canal?: 'correo' | 'whatsapp'
   filtros_aplicados: NewsletterFilters
   selectedEmails: string[]
+  // Campos personalizables para la plantilla mensual
+  nueva_marca?: string
+  looks_estilo?: Array<{ id: number; type: 'blog' | 'outfit' }> // Array de blogs/outfits seleccionados con su tipo
+  piezas_esenciales?: string
+  // Campo personalizable para la plantilla semanal
+  looks_semanal?: Array<{ id: number; type: 'blog' | 'outfit' }> // Array de blogs/outfits seleccionados con su tipo
+  // Campos personalizables para la plantilla WhatsApp semanal
+  titulo_tema?: string
+  enlace_recurso?: Array<{ id: number; type: 'blog' | 'outfit' }> // Array de blogs/outfits seleccionados con su tipo
+  cta_dia?: string
+  // Campos personalizables para la plantilla WhatsApp curaduría
+  marca_highlight?: string
+  recomendaciones_estilo?: Array<{ id: number; type: 'blog' | 'outfit' }> // Array de blogs/outfits seleccionados con su tipo
 }
 
 export interface NewsletterFilters {
@@ -440,11 +454,12 @@ export interface SelectedUser {
   id: number
   nombre: string
   correo: string
-  estado: string
-  genero: string
-  edad: number
-  tipo_estilo: number
-  ocupacion: string
+  telefono?: string
+  estado: string | null
+  genero: string | null
+  edad: number | null
+  tipo_estilo: number | null
+  ocupacion: string | null
   selected: boolean
 }
 
