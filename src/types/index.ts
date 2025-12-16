@@ -434,11 +434,11 @@ export interface NewsletterFormData {
   looks_semanal?: Array<{ id: number; type: 'blog' | 'outfit' }> // Array de blogs/outfits seleccionados con su tipo
   // Campos personalizables para la plantilla WhatsApp semanal
   titulo_tema?: string
-  enlace_recurso?: string
+  enlace_recurso?: Array<{ id: number; type: 'blog' | 'outfit' }> // Array de blogs/outfits seleccionados con su tipo
   cta_dia?: string
   // Campos personalizables para la plantilla WhatsApp curaduría
   marca_highlight?: string
-  recomendaciones_estilo?: string
+  recomendaciones_estilo?: Array<{ id: number; type: 'blog' | 'outfit' }> // Array de blogs/outfits seleccionados con su tipo
 }
 
 export interface NewsletterFilters {

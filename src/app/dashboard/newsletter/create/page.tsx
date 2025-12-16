@@ -524,6 +524,8 @@ export default function CreateNewsletterPage() {
   const [step, setStep] = useState<'details' | 'users' | 'preview'>('details')
   const [contentTypeMensual, setContentTypeMensual] = useState<'blogs' | 'outfits'>('outfits')
   const [contentTypeSemanal, setContentTypeSemanal] = useState<'blogs' | 'outfits'>('outfits')
+  const [contentTypeWhatsAppNewsletter, setContentTypeWhatsAppNewsletter] = useState<'blogs' | 'outfits'>('outfits')
+  const [contentTypeWhatsAppCuraduria, setContentTypeWhatsAppCuraduria] = useState<'blogs' | 'outfits'>('outfits')
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false)
   const [whatsappLinks, setWhatsappLinks] = useState<any[]>([])
 
@@ -596,6 +598,26 @@ export default function CreateNewsletterPage() {
     setFormData(prev => ({ ...prev, looks_semanal: newSelection }))
   }
 
+  // Handler para seleccionar/deseleccionar contenido (blogs/outfits) en plantilla WhatsApp newsletter
+  const handleEnlaceRecursoToggle = (itemId: number, itemType: 'blog' | 'outfit') => {
+    const currentSelection = formData.enlace_recurso || []
+    const isSelected = currentSelection.some(item => item.id === itemId && item.type === itemType)
+    const newSelection = isSelected
+      ? currentSelection.filter(item => !(item.id === itemId && item.type === itemType))
+      : [...currentSelection, { id: itemId, type: itemType }]
+    setFormData(prev => ({ ...prev, enlace_recurso: newSelection }))
+  }
+
+  // Handler para seleccionar/deseleccionar contenido (blogs/outfits) en plantilla WhatsApp curaduría
+  const handleRecomendacionesEstiloToggle = (itemId: number, itemType: 'blog' | 'outfit') => {
+    const currentSelection = formData.recomendaciones_estilo || []
+    const isSelected = currentSelection.some(item => item.id === itemId && item.type === itemType)
+    const newSelection = isSelected
+      ? currentSelection.filter(item => !(item.id === itemId && item.type === itemType))
+      : [...currentSelection, { id: itemId, type: itemType }]
+    setFormData(prev => ({ ...prev, recomendaciones_estilo: newSelection }))
+  }
+
   // Obtener contenido seleccionado (blogs o outfits)
   const getContentList = (contentType: 'blogs' | 'outfits') => {
     return contentType === 'blogs' ? blogs : outfits
@@ -631,9 +653,9 @@ export default function CreateNewsletterPage() {
           <div style="display:flex; align-items:flex-start; gap:12px; margin-bottom:12px;">
             ${
               imageUrl
-                ? `<img 
-                    src="${imageUrl}" 
-                    alt="${name}" 
+                ? `<img
+                    src="${imageUrl}"
+                    alt="${name}"
                     style="width:72px; height:72px; object-fit:cover; border-radius:6px; border:1px solid #eee;"
                   />`
                 : ''
@@ -649,10 +671,40 @@ export default function CreateNewsletterPage() {
       .join('')
   }
 
+  // Generar texto plano con enlaces para WhatsApp
+  const generateContentPlainText = (selectedItems: Array<{ id: number; type: 'blog' | 'outfit' }>) => {
+    return selectedItems
+      .map(({ id, type }) => {
+        // Buscar el item en el array correcto según su tipo
+        const item = type === 'blog'
+          ? blogs.find(b => b.id === id)
+          : outfits.find(o => o.id === id)
+
+        if (!item) return ''
+
+        const isBlogItem = isBlog(item)
+        const name = isBlogItem ? item.titulo : item.nombre
+
+        const url =
+          type === 'blog'
+            ? `${process.env.NEXT_PUBLIC_APP_URL || 'https://xianna.com'}/blogs/${id}`
+            : `${process.env.NEXT_PUBLIC_APP_URL || 'https://xianna.com'}/catalogo/${id}`
+
+        return `🌸 ${name}\n   ${url}`
+      })
+      .join('\n\n')
+  }
+
   const handleNext = () => {
     if (step === 'details') {
-      if (!formData.nombre || !formData.asunto || !formData.template_usado) {
+      // Validar nombre y template siempre
+      if (!formData.nombre || !formData.template_usado) {
         toast.error('Por favor completa todos los campos')
+        return
+      }
+      // Validar asunto solo para correo electrónico
+      if (formData.canal === 'correo' && !formData.asunto) {
+        toast.error('Por favor completa el asunto del email')
         return
       }
       // Validar campos personalizables para la plantilla "Edición Mensual Xianna"
@@ -671,15 +723,15 @@ export default function CreateNewsletterPage() {
       }
       // Validar campos personalizables para la plantilla "Newsletter Semanal WhatsApp"
       if (formData.template_usado === '3') {
-        if (!formData.titulo_tema || !formData.enlace_recurso || !formData.cta_dia) {
-          toast.error('Por favor completa todos los campos personalizables del newsletter de WhatsApp')
+        if (!formData.titulo_tema || !formData.enlace_recurso || formData.enlace_recurso.length === 0 || !formData.cta_dia) {
+          toast.error('Por favor completa todos los campos personalizables y selecciona al menos un blog u outfit para el newsletter de WhatsApp')
           return
         }
       }
       // Validar campos personalizables para la plantilla "Curaduría Semanal WhatsApp"
       if (formData.template_usado === '4') {
-        if (!formData.marca_highlight || !formData.recomendaciones_estilo) {
-          toast.error('Por favor completa todos los campos personalizables de la curaduría de WhatsApp')
+        if (!formData.marca_highlight || !formData.recomendaciones_estilo || formData.recomendaciones_estilo.length === 0) {
+          toast.error('Por favor completa todos los campos personalizables y selecciona al menos un blog u outfit para la curaduría de WhatsApp')
           return
         }
       }
@@ -746,15 +798,21 @@ export default function CreateNewsletterPage() {
             .replace(/\{\{looks_semanal\}\}/g, looksHTML)
         } else if (formData.template_usado === '3') {
           // Plantilla newsletter de WhatsApp
+          const enlaceRecursoText = formData.enlace_recurso && formData.enlace_recurso.length > 0
+            ? generateContentPlainText(formData.enlace_recurso)
+            : ''
           htmlContent = htmlContent
             .replace(/\{\{titulo_tema\}\}/g, formData.titulo_tema || '')
-            .replace(/\{\{enlace_recurso\}\}/g, formData.enlace_recurso || '')
+            .replace(/\{\{enlace_recurso\}\}/g, enlaceRecursoText)
             .replace(/\{\{cta_dia\}\}/g, formData.cta_dia || '')
         } else if (formData.template_usado === '4') {
           // Plantilla curaduría de WhatsApp
+          const recomendacionesText = formData.recomendaciones_estilo && formData.recomendaciones_estilo.length > 0
+            ? generateContentPlainText(formData.recomendaciones_estilo)
+            : ''
           htmlContent = htmlContent
             .replace(/\{\{marca_highlight\}\}/g, formData.marca_highlight || '')
-            .replace(/\{\{recomendaciones_estilo\}\}/g, formData.recomendaciones_estilo || '')
+            .replace(/\{\{recomendaciones_estilo\}\}/g, recomendacionesText)
         }
 
         // Check if this is a WhatsApp campaign
@@ -904,16 +962,6 @@ export default function CreateNewsletterPage() {
                 placeholder="Ej: Promoción Primavera 2024"
               />
             </div>
-            
-            <div>
-              <Label htmlFor="asunto">Asunto del email</Label>
-              <Input
-                id="asunto"
-                value={formData.asunto}
-                onChange={(e) => setFormData(prev => ({ ...prev, asunto: e.target.value }))}
-                placeholder="Ej: ¡Nuevas tendencias de primavera!"
-              />
-            </div>
 
             <div>
               <Label>Canal de envío</Label>
@@ -938,10 +986,10 @@ export default function CreateNewsletterPage() {
                       piezas_esenciales: shouldResetTemplate ? undefined : prev.piezas_esenciales,
                       looks_semanal: shouldResetTemplate ? [] : prev.looks_semanal,
                       titulo_tema: shouldResetTemplate ? undefined : prev.titulo_tema,
-                      enlace_recurso: shouldResetTemplate ? undefined : prev.enlace_recurso,
+                      enlace_recurso: shouldResetTemplate ? [] : prev.enlace_recurso,
                       cta_dia: shouldResetTemplate ? undefined : prev.cta_dia,
                       marca_highlight: shouldResetTemplate ? undefined : prev.marca_highlight,
-                      recomendaciones_estilo: shouldResetTemplate ? undefined : prev.recomendaciones_estilo,
+                      recomendaciones_estilo: shouldResetTemplate ? [] : prev.recomendaciones_estilo,
                     }
                   })
                 }}
@@ -956,8 +1004,21 @@ export default function CreateNewsletterPage() {
               </Select>
             </div>
 
+            {/* Campo de asunto solo para correo electrónico */}
+            {formData.canal === 'correo' && (
+              <div>
+                <Label htmlFor="asunto">Asunto del email</Label>
+                <Input
+                  id="asunto"
+                  value={formData.asunto}
+                  onChange={(e) => setFormData(prev => ({ ...prev, asunto: e.target.value }))}
+                  placeholder="Ej: ¡Nuevas tendencias de primavera!"
+                />
+              </div>
+            )}
+
             <div>
-              <Label>Template del email</Label>
+              <Label>Template del {formData.canal === 'whatsapp' ? 'mensaje' : 'email'}</Label>
               <Select
                 value={formData.template_usado}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, template_usado: value }))}
@@ -1203,13 +1264,75 @@ export default function CreateNewsletterPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="enlace_recurso">Enlace o recurso</Label>
-                  <Input
-                    id="enlace_recurso"
-                    value={formData.enlace_recurso || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, enlace_recurso: e.target.value }))}
-                    placeholder="Ej: Ver galería completa: https://..."
-                  />
+                  <Label>Enlace o recurso</Label>
+                  <div className="space-y-3 mt-2">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={contentTypeWhatsAppNewsletter === 'outfits' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setContentTypeWhatsAppNewsletter('outfits')}
+                      >
+                        Outfits
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={contentTypeWhatsAppNewsletter === 'blogs' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setContentTypeWhatsAppNewsletter('blogs')}
+                      >
+                        Blogs
+                      </Button>
+                    </div>
+
+                    <div className="border rounded-lg p-3 max-h-60 overflow-y-auto">
+                      <p className="text-sm text-gray-600 mb-3">
+                        {formData.enlace_recurso && formData.enlace_recurso.length > 0
+                          ? `${formData.enlace_recurso.length} seleccionado(s)`
+                          : 'Selecciona uno o más items'}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {getContentList(contentTypeWhatsAppNewsletter).map((item) => {
+                          const itemType = contentTypeWhatsAppNewsletter === 'blogs' ? 'blog' : 'outfit'
+                          const isSelected = formData.enlace_recurso?.some(
+                            selected => selected.id === item.id && selected.type === itemType
+                          ) || false
+
+                          const isBlogItem = isBlog(item)
+                          const blogItem = isBlogItem ? (item as Blog) : null
+                          const outfitItem = !isBlogItem ? (item as Outfit) : null
+
+                          const name = isBlogItem ? blogItem!.titulo : outfitItem!.nombre
+                          const thumbnail = isBlogItem ? blogItem?.image : outfitItem?.imagen
+
+                          return (
+                            <Badge
+                              key={`${itemType}-${item.id}`}
+                              variant={isSelected ? 'default' : 'outline'}
+                              className="cursor-pointer justify-start text-left p-2 h-auto"
+                              onClick={() => handleEnlaceRecursoToggle(item.id, itemType)}
+                            >
+                              <div className="flex items-center gap-2">
+                                {thumbnail && (
+                                  <div className="relative w-8 h-8 rounded overflow-hidden flex-shrink-0">
+                                    <Image
+                                      src={thumbnail}
+                                      alt={name}
+                                      fill
+                                      className="object-cover"
+                                    />
+                                  </div>
+                                )}
+                                <span className="line-clamp-2 text-left text-xs sm:text-sm">
+                                  {name}
+                                </span>
+                              </div>
+                            </Badge>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -1248,14 +1371,75 @@ export default function CreateNewsletterPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="recomendaciones_estilo">Recomendaciones por estilo + enlaces</Label>
-                  <Textarea
-                    id="recomendaciones_estilo"
-                    value={formData.recomendaciones_estilo || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, recomendaciones_estilo: e.target.value }))}
-                    placeholder="Incluye las recomendaciones por estilo con sus enlaces..."
-                    rows={4}
-                  />
+                  <Label>Recomendaciones por estilo + enlaces</Label>
+                  <div className="space-y-3 mt-2">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={contentTypeWhatsAppCuraduria === 'outfits' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setContentTypeWhatsAppCuraduria('outfits')}
+                      >
+                        Outfits
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={contentTypeWhatsAppCuraduria === 'blogs' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setContentTypeWhatsAppCuraduria('blogs')}
+                      >
+                        Blogs
+                      </Button>
+                    </div>
+
+                    <div className="border rounded-lg p-3 max-h-60 overflow-y-auto">
+                      <p className="text-sm text-gray-600 mb-3">
+                        {formData.recomendaciones_estilo && formData.recomendaciones_estilo.length > 0
+                          ? `${formData.recomendaciones_estilo.length} seleccionado(s)`
+                          : 'Selecciona uno o más items'}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {getContentList(contentTypeWhatsAppCuraduria).map((item) => {
+                          const itemType = contentTypeWhatsAppCuraduria === 'blogs' ? 'blog' : 'outfit'
+                          const isSelected = formData.recomendaciones_estilo?.some(
+                            selected => selected.id === item.id && selected.type === itemType
+                          ) || false
+
+                          const isBlogItem = isBlog(item)
+                          const blogItem = isBlogItem ? (item as Blog) : null
+                          const outfitItem = !isBlogItem ? (item as Outfit) : null
+
+                          const name = isBlogItem ? blogItem!.titulo : outfitItem!.nombre
+                          const thumbnail = isBlogItem ? blogItem?.image : outfitItem?.imagen
+
+                          return (
+                            <Badge
+                              key={`${itemType}-${item.id}`}
+                              variant={isSelected ? 'default' : 'outline'}
+                              className="cursor-pointer justify-start text-left p-2 h-auto"
+                              onClick={() => handleRecomendacionesEstiloToggle(item.id, itemType)}
+                            >
+                              <div className="flex items-center gap-2">
+                                {thumbnail && (
+                                  <div className="relative w-8 h-8 rounded overflow-hidden flex-shrink-0">
+                                    <Image
+                                      src={thumbnail}
+                                      alt={name}
+                                      fill
+                                      className="object-cover"
+                                    />
+                                  </div>
+                                )}
+                                <span className="line-clamp-2 text-left text-xs sm:text-sm">
+                                  {name}
+                                </span>
+                              </div>
+                            </Badge>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </>
             )}
@@ -1526,10 +1710,12 @@ export default function CreateNewsletterPage() {
                 <Label className="text-sm font-medium text-gray-500">Nombre</Label>
                 <p className="text-lg">{formData.nombre}</p>
               </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-500">Asunto</Label>
-                <p className="text-lg">{formData.asunto}</p>
-              </div>
+              {formData.canal === 'correo' && (
+                <div>
+                  <Label className="text-sm font-medium text-gray-500">Asunto</Label>
+                  <p className="text-lg">{formData.asunto}</p>
+                </div>
+              )}
               <div>
                 <Label className="text-sm font-medium text-gray-500">Template</Label>
                 <p className="text-lg">
@@ -1630,14 +1816,20 @@ export default function CreateNewsletterPage() {
                       htmlContent = htmlContent
                         .replace(/\{\{looks_semanal\}\}/g, looksHTML)
                     } else if (formData.template_usado === '3') {
+                      const enlaceRecursoText = formData.enlace_recurso && formData.enlace_recurso.length > 0
+                        ? generateContentPlainText(formData.enlace_recurso)
+                        : '[Selecciona blogs u outfits]'
                       htmlContent = htmlContent
                         .replace(/\{\{titulo_tema\}\}/g, formData.titulo_tema || '[Título o tema]')
-                        .replace(/\{\{enlace_recurso\}\}/g, formData.enlace_recurso || '[Enlace o recurso]')
+                        .replace(/\{\{enlace_recurso\}\}/g, enlaceRecursoText)
                         .replace(/\{\{cta_dia\}\}/g, formData.cta_dia || '[CTA del día]')
                     } else if (formData.template_usado === '4') {
+                      const recomendacionesText = formData.recomendaciones_estilo && formData.recomendaciones_estilo.length > 0
+                        ? generateContentPlainText(formData.recomendaciones_estilo)
+                        : '[Selecciona blogs u outfits]'
                       htmlContent = htmlContent
                         .replace(/\{\{marca_highlight\}\}/g, formData.marca_highlight || '[Nueva marca + breve highlight]')
-                        .replace(/\{\{recomendaciones_estilo\}\}/g, formData.recomendaciones_estilo || '[Recomendaciones por estilo + enlaces]')
+                        .replace(/\{\{recomendaciones_estilo\}\}/g, recomendacionesText)
                     }
 
                     // Reemplazar placeholders generales con valores de ejemplo
@@ -1681,14 +1873,20 @@ export default function CreateNewsletterPage() {
                         htmlContent = htmlContent
                           .replace(/\{\{looks_semanal\}\}/g, looksHTML)
                       } else if (formData.template_usado === '3') {
+                        const enlaceRecursoText = formData.enlace_recurso && formData.enlace_recurso.length > 0
+                          ? generateContentPlainText(formData.enlace_recurso)
+                          : '[Selecciona blogs u outfits]'
                         htmlContent = htmlContent
                           .replace(/\{\{titulo_tema\}\}/g, formData.titulo_tema || '[Título o tema]')
-                          .replace(/\{\{enlace_recurso\}\}/g, formData.enlace_recurso || '[Enlace o recurso]')
+                          .replace(/\{\{enlace_recurso\}\}/g, enlaceRecursoText)
                           .replace(/\{\{cta_dia\}\}/g, formData.cta_dia || '[CTA del día]')
                       } else if (formData.template_usado === '4') {
+                        const recomendacionesText = formData.recomendaciones_estilo && formData.recomendaciones_estilo.length > 0
+                          ? generateContentPlainText(formData.recomendaciones_estilo)
+                          : '[Selecciona blogs u outfits]'
                         htmlContent = htmlContent
                           .replace(/\{\{marca_highlight\}\}/g, formData.marca_highlight || '[Nueva marca + breve highlight]')
-                          .replace(/\{\{recomendaciones_estilo\}\}/g, formData.recomendaciones_estilo || '[Recomendaciones por estilo + enlaces]')
+                          .replace(/\{\{recomendaciones_estilo\}\}/g, recomendacionesText)
                       }
 
                       // Reemplazar placeholders generales con valores de ejemplo
@@ -1748,7 +1946,10 @@ export default function CreateNewsletterPage() {
       {/* WhatsApp Links Modal */}
       <WhatsAppLinksModal
         isOpen={showWhatsAppModal}
-        onClose={() => setShowWhatsAppModal(false)}
+        onClose={() => {
+          setShowWhatsAppModal(false)
+          router.push('/dashboard/newsletter')
+        }}
         links={whatsappLinks}
       />
     </div>
