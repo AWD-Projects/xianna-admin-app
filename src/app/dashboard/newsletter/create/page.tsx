@@ -556,9 +556,12 @@ export default function CreateNewsletterPage() {
   const filteredUsers = selectedUsers.filter(user => {
     if (filters.estado && user.estado !== filters.estado) return false
     if (filters.genero && user.genero !== filters.genero) return false
-    if (filters.edad_min && user.edad < filters.edad_min) return false
-    if (filters.edad_max && user.edad > filters.edad_max) return false
-    if (filters.tipo_estilo && user.tipo_estilo.toString() !== filters.tipo_estilo) return false
+    // Si hay filtro de edad mínima, excluir usuarios sin edad o con edad menor
+    if (filters.edad_min && (!user.edad || user.edad < filters.edad_min)) return false
+    // Si hay filtro de edad máxima, excluir usuarios sin edad o con edad mayor
+    if (filters.edad_max && (!user.edad || user.edad > filters.edad_max)) return false
+    // Si se ha seleccionado un filtro de estilo, excluir usuarios sin estilo o con estilo diferente
+    if (filters.tipo_estilo && (!user.tipo_estilo || user.tipo_estilo.toString() !== filters.tipo_estilo)) return false
     if (filters.ocupacion && user.ocupacion !== filters.ocupacion) return false
     return true
   })
@@ -566,11 +569,12 @@ export default function CreateNewsletterPage() {
   const selectedEmails = selectedUsers.filter(user => user.selected).map(user => user.correo)
   const selectedFilteredCount = filteredUsers.filter(user => user.selected).length
 
-  const uniqueStates = Array.from(new Set(selectedUsers.map(user => user.estado).filter(Boolean)))
-  const uniqueGenders = Array.from(new Set(selectedUsers.map(user => user.genero).filter(Boolean)))
-  const uniqueOccupations = Array.from(new Set(selectedUsers.map(user => user.ocupacion).filter(Boolean)))
+  const uniqueStates = Array.from(new Set(selectedUsers.map(user => user.estado).filter((estado): estado is string => Boolean(estado))))
+  const uniqueGenders = Array.from(new Set(selectedUsers.map(user => user.genero).filter((genero): genero is string => Boolean(genero))))
+  const uniqueOccupations = Array.from(new Set(selectedUsers.map(user => user.ocupacion).filter((ocupacion): ocupacion is string => Boolean(ocupacion))))
 
-  const getStyleName = (tipoEstilo: number) => {
+  const getStyleName = (tipoEstilo: number | null | undefined) => {
+    if (!tipoEstilo) return 'Sin estilo definido'
     const styleMap: { [key: number]: string } = {
       1: 'Casual', 2: 'Elegante', 3: 'Deportivo', 4: 'Boho',
       5: 'Minimalista', 6: 'Rockero', 7: 'Vintage'
@@ -1675,15 +1679,21 @@ export default function CreateNewsletterPage() {
                           <h4 className="font-medium">{user.nombre}</h4>
                           <p className="text-sm text-gray-600">{user.correo}</p>
                           <div className="flex gap-2 mt-1">
-                            <Badge variant="outline" className="text-xs">
-                              {user.estado}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {user.genero}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {user.edad} años
-                            </Badge>
+                            {user.estado && (
+                              <Badge variant="outline" className="text-xs">
+                                {user.estado}
+                              </Badge>
+                            )}
+                            {user.genero && (
+                              <Badge variant="outline" className="text-xs">
+                                {user.genero}
+                              </Badge>
+                            )}
+                            {user.edad && (
+                              <Badge variant="outline" className="text-xs">
+                                {user.edad} años
+                              </Badge>
+                            )}
                             <Badge variant="outline" className="text-xs">
                               {getStyleName(user.tipo_estilo)}
                             </Badge>

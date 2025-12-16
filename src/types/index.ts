@@ -455,11 +455,11 @@ export interface SelectedUser {
   nombre: string
   correo: string
   telefono?: string
-  estado: string
-  genero: string
-  edad: number
-  tipo_estilo: number
-  ocupacion: string
+  estado: string | null
+  genero: string | null
+  edad: number | null
+  tipo_estilo: number | null
+  ocupacion: string | null
   selected: boolean
 }
 
