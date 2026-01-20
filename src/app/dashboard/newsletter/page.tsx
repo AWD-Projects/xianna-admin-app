@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { fetchCampaigns, setSelectedCampaign } from '@/store/slices/newsletterSlice'
 import type { AppDispatch, RootState } from '@/store'
 import type { NewsletterCampaign } from '@/types'
-import { Plus, Mail, Users, Calendar, AlertTriangle, CheckCircle, Filter, Clock, Send, X } from 'lucide-react'
+import { Plus, Mail, Users, Calendar, AlertTriangle, CheckCircle, Filter, Clock, Send, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -19,6 +19,8 @@ export default function NewsletterPage() {
   const { campaigns, loading, error } = useSelector((state: RootState) => state.newsletter)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 6
 
   useEffect(() => {
     dispatch(fetchCampaigns())
@@ -92,9 +94,26 @@ export default function NewsletterPage() {
   const clearFilters = () => {
     setStartDate('')
     setEndDate('')
+    setCurrentPage(1)
   }
 
   const hasActiveFilters = startDate || endDate
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [startDate, endDate])
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredCampaigns.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedCampaigns = filteredCampaigns.slice(startIndex, endIndex)
+
+  const goToPage = (page: number) => {
+    setCurrentPage(page)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   // Calculate email metrics
   const totalEmailsSent = campaigns.reduce((total, campaign) => total + campaign.numero_usuarios_enviados, 0)
@@ -332,7 +351,7 @@ export default function NewsletterPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {filteredCampaigns.map((campaign) => {
+            {paginatedCampaigns.map((campaign) => {
               const filters = getFiltersSummary(campaign.filtros_aplicados)
               const templateName = campaign.template_usado === '1' ? 'Promoción de Estilo' : 'Consejos de Outfit'
               
@@ -409,6 +428,74 @@ export default function NewsletterPage() {
               )
             })}
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-8">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="flex items-center gap-1"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Anterior
+              </Button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                  // Show first page, last page, current page, and pages around current
+                  const showPage =
+                    page === 1 ||
+                    page === totalPages ||
+                    (page >= currentPage - 1 && page <= currentPage + 1)
+
+                  if (!showPage) {
+                    // Show ellipsis
+                    if (page === currentPage - 2 || page === currentPage + 2) {
+                      return (
+                        <span key={page} className="px-2 text-gray-400">
+                          ...
+                        </span>
+                      )
+                    }
+                    return null
+                  }
+
+                  return (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => goToPage(page)}
+                      className="min-w-[40px]"
+                    >
+                      {page}
+                    </Button>
+                  )
+                })}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="flex items-center gap-1"
+              >
+                Siguiente
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
+          {/* Page info */}
+          {totalPages > 1 && (
+            <div className="text-center text-sm text-gray-600 mt-4">
+              Mostrando {startIndex + 1}-{Math.min(endIndex, filteredCampaigns.length)} de {filteredCampaigns.length} campañas
+            </div>
+          )}
         </div>
       )}
 
