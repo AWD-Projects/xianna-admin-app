@@ -9,6 +9,8 @@ import type {
   DashboardInsights
 } from '@/types'
 
+export const dynamic = 'force-dynamic'
+
 async function buildUserAnalytics(): Promise<UserAnalytics> {
   const supabase = createClient()
 
@@ -22,7 +24,7 @@ async function buildUserAnalytics(): Promise<UserAnalytics> {
 
   const { data: allUsers } = await supabase
     .from('user_details')
-    .select('*')
+    .select('id, created_at')
     .limit(1)
 
   let newUsersThisMonth = 0
@@ -37,7 +39,11 @@ async function buildUserAnalytics(): Promise<UserAnalytics> {
   const { data: usersWithStyles } = await supabase
     .from('user_details')
     .select(`
-      *,
+      id,
+      estado,
+      edad,
+      tipo_cuerpo,
+      created_at,
       estilos!left(tipo)
     `)
 
@@ -47,7 +53,10 @@ async function buildUserAnalytics(): Promise<UserAnalytics> {
   const bodyTypeCounts: Record<string, number> = {}
 
   usersWithStyles?.forEach((user) => {
-    const style = user.estilos?.tipo || 'Sin estilo'
+    const estilos = user.estilos as any
+    const style = Array.isArray(estilos)
+      ? estilos[0]?.tipo || 'Sin estilo'
+      : estilos?.tipo || 'Sin estilo'
     styleCounts[style] = (styleCounts[style] || 0) + 1
 
     if (user.estado) {
@@ -191,7 +200,7 @@ async function buildOutfitAnalytics(): Promise<OutfitAnalytics> {
   const { data: outfitsData } = await supabase
     .from('outfits')
     .select(`
-      *,
+      id,
       estilos!inner(tipo)
     `)
 
@@ -213,7 +222,10 @@ async function buildOutfitAnalytics(): Promise<OutfitAnalytics> {
 
   const styleCounts: Record<string, number> = {}
   outfitsData?.forEach((outfit) => {
-    const style = outfit.estilos?.tipo || 'Sin estilo'
+    const estilos = outfit.estilos as any
+    const style = Array.isArray(estilos)
+      ? estilos[0]?.tipo || 'Sin estilo'
+      : estilos?.tipo || 'Sin estilo'
     styleCounts[style] = (styleCounts[style] || 0) + 1
   })
 
@@ -278,13 +290,16 @@ async function buildQuestionnaireAnalytics(): Promise<QuestionnaireAnalytics> {
   const { data: answersData } = await supabase
     .from('respuestas')
     .select(`
-      *,
+      id,
       estilos!inner(tipo)
     `)
 
   const styleCounts: Record<string, number> = {}
   answersData?.forEach((answer) => {
-    const style = answer.estilos?.tipo || 'Sin estilo'
+    const estilos = answer.estilos as any
+    const style = Array.isArray(estilos)
+      ? estilos[0]?.tipo || 'Sin estilo'
+      : estilos?.tipo || 'Sin estilo'
     styleCounts[style] = (styleCounts[style] || 0) + 1
   })
 

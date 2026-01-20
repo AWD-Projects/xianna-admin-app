@@ -70,8 +70,8 @@ export const fetchBlogs = createAsyncThunk(
         id,
         titulo,
         descripcion,
-        contenido,
         id_categoria,
+        created_at,
         categoria_blog!inner(categoria)
       `,
         { count: 'exact' }
@@ -120,16 +120,16 @@ export const fetchBlogs = createAsyncThunk(
       (data || []).map(async (blog: any) => {
         const { data: files } = await supabase.storage
           .from('Blogs')
-          .list(`uploads/${blog.id}`)
+          .list(`uploads/${blog.id}`, {
+            limit: 1,
+            sortBy: { column: 'created_at', order: 'desc' }
+          })
 
-        const images =
-          files?.map(
-            (file) =>
-              supabase.storage.from('Blogs').getPublicUrl(`uploads/${blog.id}/${file.name}`).data
-                .publicUrl
-          ) || []
-
-        const primaryImage = images[0] || '/images/placeholder.jpg'
+        const primaryImage = files?.[0]
+          ? supabase.storage
+              .from('Blogs')
+              .getPublicUrl(`uploads/${blog.id}/${files[0].name}`).data.publicUrl
+          : '/images/placeholder.jpg'
 
         const ratingEntry = blogRatingsMap.get(blog.id)
         const rating =
@@ -139,13 +139,14 @@ export const fetchBlogs = createAsyncThunk(
 
         return {
           ...blog,
+          contenido: '',
           categoria: blog.categoria_blog?.categoria || 'Sin categoría',
           image: primaryImage,
           name: blog.titulo,
           category: blog.categoria_blog?.categoria || 'Sin categoría',
           rating,
           persons: ratingEntry?.count || 0,
-          images,
+          images: [],
         }
       })
     )
@@ -265,21 +266,26 @@ export const updateBlog = createAsyncThunk(
   'blog/updateBlog',
   async ({ id, blogData }: { id: number; blogData: Partial<BlogFormData> & { imagesToDelete?: string[] } }) => {
     const supabase = createClient()
-    
-    // Update blog data
-    const { data, error } = await supabase
-      .from('blogs')
-      .update({
+
+    const response = await fetch(`/api/blogs/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
         titulo: blogData.titulo,
         descripcion: blogData.descripcion,
         contenido: blogData.contenido,
         id_categoria: blogData.id_categoria
       })
-      .eq('id', id)
-      .select()
-      .single()
+    })
 
-    if (error) throw error
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null)
+      throw new Error(errorBody?.error || 'Error al actualizar el blog')
+    }
+
+    const data = await response.json()
 
     // Delete removed images if specified
     if (blogData.imagesToDelete && blogData.imagesToDelete.length > 0) {

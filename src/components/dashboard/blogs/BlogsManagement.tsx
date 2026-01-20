@@ -176,7 +176,6 @@ export function BlogsManagement() {
     return (
       <BlogForm
         blogId={editingBlog.id}
-        initialData={editingBlog}
         onSuccess={handleCreateSuccess}
         onCancel={() => setEditingBlog(null)}
       />

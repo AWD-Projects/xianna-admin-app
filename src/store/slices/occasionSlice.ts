@@ -48,17 +48,20 @@ export const createOccasion = createAsyncThunk(
 export const updateOccasion = createAsyncThunk(
   'occasion/updateOccasion',
   async ({ id, occasionData }: { id: number; occasionData: OccasionFormData }) => {
-    const supabase = createClient()
-    
-    const { data, error } = await supabase
-      .from('ocasion')
-      .update(occasionData)
-      .eq('id', id)
-      .select()
-      .single()
+    const response = await fetch(`/api/occasions/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(occasionData)
+    })
 
-    if (error) throw error
-    return data
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null)
+      throw new Error(errorBody?.error || 'Error al actualizar ocasión')
+    }
+
+    return await response.json()
   }
 )
 

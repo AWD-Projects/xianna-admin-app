@@ -48,36 +48,41 @@ export const createStyle = createAsyncThunk(
 export const updateStyle = createAsyncThunk(
   'style/updateStyle',
   async ({ id, styleData }: { id: number; styleData: StyleFormData }) => {
-    const supabase = createClient()
-    
-    const { data, error } = await supabase
-      .from('estilos')
-      .update(styleData)
-      .eq('id', id)
-      .select()
-      .single()
+    const response = await fetch(`/api/styles/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(styleData)
+    })
 
-    if (error) throw error
-    return data
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null)
+      throw new Error(errorBody?.error || 'Error al actualizar estilo')
+    }
+
+    return await response.json()
   }
 )
 
 export const toggleStyleStatus = createAsyncThunk(
   'style/toggleStyleStatus',
   async ({ id, currentStatus }: { id: number; currentStatus: 'activo' | 'inactivo' }) => {
-    const supabase = createClient()
-
     const newStatus = currentStatus === 'activo' ? 'inactivo' : 'activo'
+    const response = await fetch(`/api/styles/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ status: newStatus })
+    })
 
-    const { data, error } = await supabase
-      .from('estilos')
-      .update({ status: newStatus })
-      .eq('id', id)
-      .select()
-      .single()
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null)
+      throw new Error(errorBody?.error || 'Error al actualizar estado del estilo')
+    }
 
-    if (error) throw error
-    return data
+    return await response.json()
   }
 )
 
@@ -85,15 +90,20 @@ export const toggleStyleStatus = createAsyncThunk(
 export const deleteStyle = createAsyncThunk(
   'style/deleteStyle',
   async (id: number) => {
-    const supabase = createClient()
-
     // Soft delete: update status to 'inactivo' instead of deleting
-    const { error } = await supabase
-      .from('estilos')
-      .update({ status: 'inactivo' })
-      .eq('id', id)
+    const response = await fetch(`/api/styles/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ status: 'inactivo' })
+    })
 
-    if (error) throw error
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null)
+      throw new Error(errorBody?.error || 'Error al eliminar estilo')
+    }
+
     return id
   }
 )

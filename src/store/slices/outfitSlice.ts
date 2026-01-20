@@ -54,7 +54,11 @@ export const fetchOutfits = createAsyncThunk(
       .from('outfits')
       .select(
         `
-        *,
+        id,
+        nombre,
+        descripcion,
+        id_estilo,
+        advisor_id,
         estilos!inner(tipo, status),
         advisors(id, nombre, especialidad)
       `,
@@ -91,26 +95,21 @@ export const fetchOutfits = createAsyncThunk(
       })
     }
 
-    // Fetch occasions mapping in bulk
-    let occasionLookup = new Map<number, string>()
-    let outfitOccasionMap = new Map<number, number[]>()
+    // Fetch occasions mapping in bulk (one query with join)
+    const outfitOccasionMap = new Map<number, string[]>()
 
     if (outfitIds.length > 0) {
-      const [{ data: occasionsData }, { data: allOccasions }] = await Promise.all([
-        supabase
-          .from('outfit_ocasion')
-          .select('id_outfit, id_ocasion')
-          .in('id_outfit', outfitIds),
-        supabase.from('ocasion').select('id, ocasion'),
-      ])
+      const { data: occasionsData } = await supabase
+        .from('outfit_ocasion')
+        .select('id_outfit, ocasion:ocasion(ocasion)')
+        .in('id_outfit', outfitIds)
 
-      occasionLookup = new Map(
-        (allOccasions || []).map((occasion) => [occasion.id, occasion.ocasion])
-      )
-
-      occasionsData?.forEach((item) => {
+      occasionsData?.forEach((item: any) => {
         const current = outfitOccasionMap.get(item.id_outfit) || []
-        current.push(item.id_ocasion)
+        const occasionName = item.ocasion?.ocasion
+        if (occasionName) {
+          current.push(occasionName)
+        }
         outfitOccasionMap.set(item.id_outfit, current)
       })
     }
@@ -121,7 +120,10 @@ export const fetchOutfits = createAsyncThunk(
         try {
           const { data: files } = await supabase.storage
             .from('Outfits')
-            .list(`uploads/${outfit.id}/imagen_principal`)
+            .list(`uploads/${outfit.id}/imagen_principal`, {
+              limit: 1,
+              sortBy: { column: 'created_at', order: 'desc' }
+            })
 
           if (files && files.length > 0) {
             const sortedFiles = files.sort(
@@ -136,16 +138,13 @@ export const fetchOutfits = createAsyncThunk(
           console.warn(`Error loading image for outfit ${outfit.id}:`, storageError)
         }
 
-        const occasionIds = outfitOccasionMap.get(outfit.id) || []
-        const ocasiones = occasionIds
-          .map((occasionId) => occasionLookup.get(occasionId))
-          .filter(Boolean) as string[]
+        const ocasiones = outfitOccasionMap.get(outfit.id) || []
 
         return {
           ...outfit,
           estilo: outfit.estilos?.tipo || 'Sin estilo',
           estiloStatus: outfit.estilos?.status || 'activo',
-          imagen: imageUrl,
+          imagen: imageUrl || '',
           ocasiones,
           favoritos: favoriteCountMap.get(outfit.id) || 0,
           advisor: outfit.advisors
@@ -340,14 +339,20 @@ export const updateOutfit = createAsyncThunk(
       outfitUpdate.advisor_id = outfitData.advisor_id && outfitData.advisor_id > 0 ? outfitData.advisor_id : null
     }
 
-    const { data, error } = await supabase
-      .from('outfits')
-      .update(outfitUpdate)
-      .eq('id', id)
-      .select()
-      .single()
+    const updateResponse = await fetch(`/api/outfits/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(outfitUpdate)
+    })
 
-    if (error) throw error
+    if (!updateResponse.ok) {
+      const errorBody = await updateResponse.json().catch(() => null)
+      throw new Error(errorBody?.error || 'Error al actualizar el outfit')
+    }
+
+    const data = await updateResponse.json()
 
     // Upload new main image if provided
     if (outfitData.imagen) {

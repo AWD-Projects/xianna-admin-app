@@ -104,38 +104,35 @@ export const createAdvisor = createAsyncThunk(
 export const updateAdvisor = createAsyncThunk(
   'advisor/updateAdvisor',
   async ({ id, advisorData }: { id: number; advisorData: Partial<AdvisorFormData> }) => {
-    const supabase = createClient()
-    
-    const { data, error } = await supabase
-      .from('advisors')
-      .update(advisorData)
-      .eq('id', id)
-      .select()
-      .single()
+    const response = await fetch(`/api/advisors/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(advisorData)
+    })
 
-    if (error) throw error
-    return data
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null)
+      throw new Error(errorBody?.error || 'Error al actualizar asesora')
+    }
+
+    return await response.json()
   }
 )
 
 export const deleteAdvisor = createAsyncThunk(
   'advisor/deleteAdvisor',
   async (id: number) => {
-    const supabase = createClient()
-    
-    // First, set advisor_id to null for all outfits that reference this advisor
-    await supabase
-      .from('outfits')
-      .update({ advisor_id: null })
-      .eq('advisor_id', id)
-    
-    // Then delete the advisor
-    const { error } = await supabase
-      .from('advisors')
-      .delete()
-      .eq('id', id)
+    const response = await fetch(`/api/advisors/${id}`, {
+      method: 'DELETE'
+    })
 
-    if (error) throw error
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null)
+      throw new Error(errorBody?.error || 'Error al eliminar asesora')
+    }
+
     return id
   }
 )
