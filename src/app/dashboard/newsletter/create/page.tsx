@@ -44,10 +44,11 @@ const EMAIL_TEMPLATES = [
           <td style="padding:12px 24px; background-color:#fdf5f2;">
             <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
               <tr>
-                <td style="font-size:12px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; color:#222;">
-                  Xianna · Edición mensual
+                <td style="vertical-align:middle;">
+                  <img src="https://www.xianna.com.mx/_next/image?url=%2Fimages%2Fxianna.png&w=640&q=75" alt="Xianna" style="height:24px; display:inline-block; vertical-align:middle;" />
+                  <span style="font-size:12px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; color:#222; margin-left:8px; vertical-align:middle;">· Edición mensual</span>
                 </td>
-                <td style="text-align:right; font-size:11px; color:#777;">
+                <td style="text-align:right; font-size:11px; color:#777; vertical-align:middle;">
                   Curaduría de estilo consciente
                 </td>
               </tr>
@@ -70,9 +71,12 @@ const EMAIL_TEMPLATES = [
 
         <!-- Hero (similar al diseño de ejemplo) -->
         <tr>
-          <td style="padding:28px 24px 24px; background-color:#f8c8d8;">
-            <div style="text-align:center; font-size:26px; letter-spacing:0.20em; text-transform:uppercase; color:#222; font-weight:500; line-height:1.1;">
-              Edición mensual Xianna
+          <td style="padding:28px 24px 24px; background-color:#f8c8d8; text-align:center;">
+            <div style="margin-bottom:8px;">
+              <img src="https://www.xianna.com.mx/_next/image?url=%2Fimages%2Fxianna.png&w=640&q=75" alt="Xianna" style="height:32px; display:inline-block;" />
+            </div>
+            <div style="font-size:26px; letter-spacing:0.20em; text-transform:uppercase; color:#222; font-weight:500; line-height:1.1;">
+              Edición mensual
             </div>
           </td>
         </tr>
@@ -85,7 +89,7 @@ const EMAIL_TEMPLATES = [
 
                 <!-- Columna con imagen adaptada a la altura del texto -->
                 <td width="50%" valign="top" 
-                    background="https://aliancadorada.com/wp-content/uploads/2025/04/0001_1_business-outfits-for-women-summer-2025-i_igaksbort1a0zcoxufflag_ctct9ypftww4wmr5-yvdbg_cover.jpg"
+                    background="https://media.glamour.mx/photos/6190512bdc5382f9acfb3e06/1:1/w_1575,h_1575,c_limit/261199.jpg"
                     style="
                       background-size: cover;
                       background-position: center;
@@ -226,7 +230,10 @@ const EMAIL_TEMPLATES = [
         <!-- Footer -->
         <tr>
           <td style="padding:18px 24px; background-color:#f5f5f7; text-align:center; font-size:11px; color:#777;">
-            <div>Xianna · Tu plataforma de moda personalizada</div>
+            <div>
+              <img src="https://www.xianna.com.mx/_next/image?url=%2Fimages%2Fxianna.png&w=640&q=75" alt="Xianna" style="height:18px; display:inline-block; vertical-align:middle;" />
+              <span style="vertical-align:middle; margin-left:4px;">· Tu plataforma de moda personalizada</span>
+            </div>
             <div style="margin-top:4px;">
               Si no deseas recibir más emails,
               <a href="#" style="color:#ec4899; text-decoration:underline;">haz clic aquí</a>
@@ -250,10 +257,11 @@ htmlContent: `
         <td style="padding:10px 24px; background-color:#fdf5f2;">
           <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
             <tr>
-              <td style="font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#111827; font-weight:600;">
-                Xianna · Resumen semanal
+              <td style="vertical-align:middle;">
+                <img src="https://www.xianna.com.mx/_next/image?url=%2Fimages%2Fxianna.png&w=640&q=75" alt="Xianna" style="height:20px; display:inline-block; vertical-align:middle;" />
+                <span style="font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#111827; font-weight:600; margin-left:8px; vertical-align:middle;">· Resumen semanal</span>
               </td>
-              <td style="text-align:right; font-size:11px; color:#6b7280;">
+              <td style="text-align:right; font-size:11px; color:#6b7280; vertical-align:middle;">
                 ACCESORIOS &nbsp;·&nbsp; PRENDAS &nbsp;·&nbsp; NUEVAS LLEGADAS
               </td>
             </tr>
@@ -267,8 +275,8 @@ htmlContent: `
           <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; text-align:center;">
             <tr>
               <td>
-                <div style="font-size:12px; letter-spacing:0.20em; text-transform:uppercase; color:#111827; margin-bottom:6px;">
-                  Xianna
+                <div style="margin-bottom:6px;">
+                  <img src="https://www.xianna.com.mx/_next/image?url=%2Fimages%2Fxianna.png&w=640&q=75" alt="Xianna" style="height:32px; display:inline-block;" />
                 </div>
                 <div style="font-size:30px; letter-spacing:0.18em; text-transform:uppercase; color:#111827; font-weight:500; line-height:1.1;">
                   Resumen semanal
@@ -405,7 +413,10 @@ htmlContent: `
       <!-- Footer -->
       <tr>
         <td style="padding:18px 24px; background-color:#f5f5f7; text-align:center; font-size:11px; color:#777;">
-          <div>Xianna - Tu plataforma de moda personalizada</div>
+          <div>
+            <img src="https://www.xianna.com.mx/_next/image?url=%2Fimages%2Fxianna.png&w=640&q=75" alt="Xianna" style="height:18px; display:inline-block; vertical-align:middle;" />
+            <span style="vertical-align:middle; margin-left:4px;">- Tu plataforma de moda personalizada</span>
+          </div>
           <div style="margin-top:4px;">
             Si no deseas recibir más emails,
             <a href="#" style="color:#ec4899; text-decoration:underline;">haz clic aquí</a>
