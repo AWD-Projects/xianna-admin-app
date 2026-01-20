@@ -1,14 +1,15 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { fetchCampaigns, setSelectedCampaign } from '@/store/slices/newsletterSlice'
 import type { AppDispatch, RootState } from '@/store'
 import type { NewsletterCampaign } from '@/types'
-import { Plus, Mail, Users, Calendar, AlertTriangle, CheckCircle, Filter, Clock, Send } from 'lucide-react'
+import { Plus, Mail, Users, Calendar, AlertTriangle, CheckCircle, Filter, Clock, Send, X } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -16,7 +17,9 @@ import { es } from 'date-fns/locale'
 export default function NewsletterPage() {
   const dispatch = useDispatch<AppDispatch>()
   const { campaigns, loading, error } = useSelector((state: RootState) => state.newsletter)
-  
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+
   useEffect(() => {
     dispatch(fetchCampaigns())
   }, [dispatch])
@@ -40,16 +43,58 @@ export default function NewsletterPage() {
   const getFiltersSummary = (filtersString: string) => {
     const filters = parseFilters(filtersString)
     const filterItems = []
-    
+
     if (filters.estado) filterItems.push(`Estado: ${filters.estado}`)
     if (filters.genero) filterItems.push(`Género: ${filters.genero}`)
     if (filters.edad_min) filterItems.push(`Edad min: ${filters.edad_min}`)
     if (filters.edad_max) filterItems.push(`Edad max: ${filters.edad_max}`)
     if (filters.tipo_estilo) filterItems.push(`Estilo: ${getStyleName(filters.tipo_estilo)}`)
     if (filters.ocupacion) filterItems.push(`Ocupación: ${filters.ocupacion}`)
-    
+
     return filterItems.length > 0 ? filterItems : []
   }
+
+  // Filter campaigns by date
+  const filteredCampaigns = campaigns.filter((campaign) => {
+    const campaignDate = new Date(campaign.created_at)
+
+    // Get date components to avoid timezone issues
+    const campaignYear = campaignDate.getFullYear()
+    const campaignMonth = campaignDate.getMonth()
+    const campaignDay = campaignDate.getDate()
+
+    // Create a date object with just the date components (no time)
+    const campaignDateOnly = new Date(campaignYear, campaignMonth, campaignDay)
+
+    if (startDate && endDate) {
+      const [startYear, startMonth, startDay] = startDate.split('-').map(Number)
+      const [endYear, endMonth, endDay] = endDate.split('-').map(Number)
+
+      const startDateOnly = new Date(startYear, startMonth - 1, startDay)
+      const endDateOnly = new Date(endYear, endMonth - 1, endDay)
+
+      return campaignDateOnly >= startDateOnly && campaignDateOnly <= endDateOnly
+    } else if (startDate) {
+      const [startYear, startMonth, startDay] = startDate.split('-').map(Number)
+      const startDateOnly = new Date(startYear, startMonth - 1, startDay)
+
+      return campaignDateOnly >= startDateOnly
+    } else if (endDate) {
+      const [endYear, endMonth, endDay] = endDate.split('-').map(Number)
+      const endDateOnly = new Date(endYear, endMonth - 1, endDay)
+
+      return campaignDateOnly <= endDateOnly
+    }
+
+    return true
+  })
+
+  const clearFilters = () => {
+    setStartDate('')
+    setEndDate('')
+  }
+
+  const hasActiveFilters = startDate || endDate
 
   // Calculate email metrics
   const totalEmailsSent = campaigns.reduce((total, campaign) => total + campaign.numero_usuarios_enviados, 0)
@@ -184,8 +229,63 @@ export default function NewsletterPage() {
         </Card>
       </div>
 
+      {/* Filters Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filtrar por Fecha
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha desde
+              </label>
+              <Input
+                id="start-date"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="flex-1">
+              <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha hasta
+              </label>
+              <Input
+                id="end-date"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            {hasActiveFilters && (
+              <div className="flex items-end">
+                <Button
+                  variant="outline"
+                  onClick={clearFilters}
+                  className="flex items-center gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  Limpiar
+                </Button>
+              </div>
+            )}
+          </div>
+          {hasActiveFilters && (
+            <div className="mt-3 text-sm text-gray-600">
+              Mostrando {filteredCampaigns.length} de {campaigns.length} campañas
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Campaigns List */}
-      {campaigns.length === 0 ? (
+      {filteredCampaigns.length === 0 && campaigns.length === 0 ? (
         <Card>
           <CardContent className="pt-6">
             <div className="text-center py-12">
@@ -205,16 +305,34 @@ export default function NewsletterPage() {
             </div>
           </CardContent>
         </Card>
+      ) : filteredCampaigns.length === 0 ? (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-12">
+              <Filter className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No se encontraron campañas
+              </h3>
+              <p className="text-gray-500 mb-4">
+                No hay campañas que coincidan con los filtros aplicados
+              </p>
+              <Button variant="outline" onClick={clearFilters}>
+                <X className="h-4 w-4 mr-2" />
+                Limpiar filtros
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900">
-              Campañas Recientes ({campaigns.length})
+              Campañas Recientes ({filteredCampaigns.length})
             </h2>
           </div>
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {campaigns.map((campaign) => {
+            {filteredCampaigns.map((campaign) => {
               const filters = getFiltersSummary(campaign.filtros_aplicados)
               const templateName = campaign.template_usado === '1' ? 'Promoción de Estilo' : 'Consejos de Outfit'
               
