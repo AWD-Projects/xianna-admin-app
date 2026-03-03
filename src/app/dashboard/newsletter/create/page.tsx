@@ -878,7 +878,7 @@ export default function CreateNewsletterPage() {
             toast.error('No se pudieron generar enlaces de WhatsApp. Verifica que los usuarios tengan teléfonos registrados.')
           }
         } else {
-          // For email, send via SendGrid
+          // For email, send via Resend
           await dispatch(sendNewsletterCampaign({
             campaignId: campaign.id,
             users: selectedUsersData,

@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import sgMail from '@sendgrid/mail'
+import { Resend } from 'resend'
 
 import { createClient } from '@/lib/supabase/server'
 
-// Initialize SendGrid with your API key
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || ''
-sgMail.setApiKey(SENDGRID_API_KEY)
+// Initialize Resend with your API key
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 const EMAIL_LIMIT =
   Number(process.env.NEWSLETTER_EMAIL_LIMIT ?? process.env.NEXT_PUBLIC_NEWSLETTER_EMAIL_LIMIT ?? '1000') ||
@@ -123,36 +122,19 @@ export async function POST(request: NextRequest) {
         user,
         styleMap
       )
-      
+
       return {
         to: user.correo,
-        from: {
-          email: 'xianna-newsletter@amoxtli.tech',
-          name: 'Xianna Fashion'
-        },
+        from: 'Xianna Fashion <xianna-newsletter@amoxtli.tech>',
         subject: personalizedSubject,
         html: personalizedHtml,
         text: personalizedHtml.replace(/<[^>]*>/g, ''), // Simple HTML to text conversion
-        trackingSettings: {
-          clickTracking: {
-            enable: true,
-            enableText: false
-          },
-          openTracking: {
-            enable: true
-          }
-        },
-        customArgs: {
-          campaign_id: campaignId.toString(),
-          campaign_type: 'newsletter',
-          user_id: user.id.toString()
-        }
       }
     })
 
     // Use Promise.allSettled to handle partial failures
     const results = await Promise.allSettled(
-      personalizedEmails.map(emailData => sgMail.send(emailData))
+      personalizedEmails.map(emailData => resend.emails.send(emailData))
     )
 
     const successCount = results.filter(r => r.status === 'fulfilled').length
@@ -179,22 +161,10 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: any) {
-    console.error('SendGrid error:', error)
-    
-    // Handle SendGrid specific errors
-    if (error.response) {
-      console.error('SendGrid error body:', error.response.body)
-      return NextResponse.json(
-        { 
-          error: 'Failed to send newsletter',
-          details: error.response.body?.errors || error.message
-        },
-        { status: error.code || 500 }
-      )
-    }
+    console.error('Resend error:', error)
 
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to send newsletter',
         details: error.message
       },
