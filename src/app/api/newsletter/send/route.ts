@@ -133,14 +133,22 @@ export async function POST(request: NextRequest) {
     })
 
     // Use Promise.allSettled to handle partial failures
+    // Note: Resend returns { data, error } and never rejects, so we must check .error
     const results = await Promise.allSettled(
       personalizedEmails.map(emailData => resend.emails.send(emailData))
     )
 
-    const successCount = results.filter(r => r.status === 'fulfilled').length
-    const failedCount = results.filter(r => r.status === 'rejected').length
+    const successCount = results.filter(r => r.status === 'fulfilled' && !r.value.error).length
+    const failedCount = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value.error)).length
     const failedEmails = results
-      .map((r, index) => r.status === 'rejected' ? personalizedEmails[index].to : null)
+      .map((r, index) => {
+        if (r.status === 'rejected') return personalizedEmails[index].to
+        if (r.status === 'fulfilled' && r.value.error) {
+          console.error(`Resend error for ${personalizedEmails[index].to}:`, r.value.error)
+          return personalizedEmails[index].to
+        }
+        return null
+      })
       .filter(Boolean)
 
     // Log failed emails for debugging
